@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
@@ -12,7 +13,7 @@ from mod_sentinel.settings import reset_settings_cache
 
 
 @pytest.fixture(autouse=True)
-def _reset_settings_between_tests() -> None:
+def _reset_settings_between_tests() -> Iterator[None]:
     reset_settings_cache()
     yield
     reset_settings_cache()
@@ -21,6 +22,7 @@ def _reset_settings_between_tests() -> None:
 def _configure_local_storage(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("LOCAL_STORAGE_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("SCAN_STORE_DIR", str(tmp_path / "scans"))
 
 
 def _build_suspicious_jar() -> bytes:
@@ -56,8 +58,10 @@ def test_scan_returns_static_matches(monkeypatch, tmp_path: Path) -> None:
     scan_response = client.post("/scan", json={"upload_id": upload_id})
     assert scan_response.status_code == 200
     payload = scan_response.json()
-    matched_ids = {match["id"] for match in payload["static"]["matches"]}
+    result = payload["result"]
+    matched_ids = {match["id"] for match in result["static"]["matches"]}
 
-    assert payload["intake"]["upload_id"] == upload_id
-    assert payload["static"]["matches"]
+    assert payload["scan_id"]
+    assert result["intake"]["upload_id"] == upload_id
+    assert result["static"]["matches"]
     assert "NET-URLCONNECTION" in matched_ids or "EXEC-RUNTIME" in matched_ids

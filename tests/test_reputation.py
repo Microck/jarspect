@@ -25,6 +25,7 @@ def _configure_local(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("LOCAL_STORAGE_DIR", str(tmp_path / "uploads"))
     monkeypatch.setenv("LLM_PROVIDER", "stub")
+    monkeypatch.setenv("SCAN_STORE_DIR", str(tmp_path / "scans"))
 
 
 def _build_simple_jar() -> bytes:
@@ -121,6 +122,8 @@ def test_scan_includes_reputation_when_author_metadata_provided(
 
     assert scan_response.status_code == 200
     payload = scan_response.json()
-    assert payload["reputation"]["author_id"] == "new_creator"
-    assert payload["reputation"]["account_age_days"] == 14
-    assert payload["reputation"]["report_count"] == 4
+    result = payload["result"]
+    assert payload["scan_id"]
+    assert result["reputation"]["author_id"] == "new_creator"
+    assert result["reputation"]["account_age_days"] == 14
+    assert result["reputation"]["report_count"] == 4

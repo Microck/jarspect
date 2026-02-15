@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
@@ -13,7 +14,7 @@ from mod_sentinel.settings import reset_settings_cache
 
 
 @pytest.fixture(autouse=True)
-def _reset_settings_between_tests() -> None:
+def _reset_settings_between_tests() -> Iterator[None]:
     reset_settings_cache()
     yield
     reset_settings_cache()
@@ -53,6 +54,7 @@ def test_inspect_jar_rejects_path_traversal_entry() -> None:
 def _configure_local_storage(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("LOCAL_STORAGE_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setenv("SCAN_STORE_DIR", str(tmp_path / "scans"))
 
 
 def _upload_jar(client: TestClient, filename: str, content: bytes) -> str:
@@ -75,7 +77,7 @@ def test_scan_detects_fabric_loader(monkeypatch, tmp_path: Path) -> None:
 
     scan_response = client.post("/scan", json={"upload_id": upload_id})
     assert scan_response.status_code == 200
-    assert scan_response.json()["intake"]["loader"] == "fabric"
+    assert scan_response.json()["result"]["intake"]["loader"] == "fabric"
 
 
 def test_scan_detects_forge_loader(monkeypatch, tmp_path: Path) -> None:
@@ -89,4 +91,4 @@ def test_scan_detects_forge_loader(monkeypatch, tmp_path: Path) -> None:
 
     scan_response = client.post("/scan", json={"upload_id": upload_id})
     assert scan_response.status_code == 200
-    assert scan_response.json()["intake"]["loader"] == "forge"
+    assert scan_response.json()["result"]["intake"]["loader"] == "forge"
