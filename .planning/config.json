@@ -21,8 +21,7 @@
   "model_profile": "custom",
   "models": {
     "planning": [
-      "google/antigravity-claude-opus-4-6-thinking",
-      "google/antigravity-claude-opus-4-5-thinking",
+      "github-copilot/claude-opus-4.6",
       "openai/gpt-5.2"
     ],
     "coding": [
@@ -30,27 +29,26 @@
       "openai/gpt-5.2-codex"
     ],
     "research": [
-      "google/antigravity-gemini-3-pro",
-      "zai-coding-plan/glm-4.7"
+      "zai-coding-plan/glm-4.7",
+      "zai-coding-plan/glm-4.7-flash"
     ],
     "verification": [
-      "google/antigravity-claude-opus-4-6-thinking",
-      "google/antigravity-claude-opus-4-5-thinking",
+      "github-copilot/claude-opus-4.6",
       "openai/gpt-5.2"
     ]
   },
   "gates": {
     "confirm_project": false,
     "confirm_phases": false,
-    "confirm_roadmap": true,
+    "confirm_roadmap": false,
     "confirm_breakdown": false,
     "confirm_plan": false,
     "execute_next_plan": false,
-    "issues_review": true,
+    "issues_review": false,
     "confirm_transition": false
   },
   "safety": {
-    "always_confirm_destructive": true,
-    "always_confirm_external_services": true
+    "always_confirm_destructive": false,
+    "always_confirm_external_services": false
   }
 }
