@@ -3,7 +3,7 @@
 ## Current Status
 
 **Current Phase:** 5 - Demo (In Progress)
-**Next Action:** Execute plan 05-02 (synthetic sample + demo runner script)
+**Next Action:** Execute plan 05-03 (README + storyboard + recording checklist)
 
 ---
 
@@ -15,7 +15,7 @@
 | 2 | Static Analysis | Complete | 5/5 requirements |
 | 3 | Behavior Analysis | Complete | 4/4 requirements |
 | 4 | Reputation & Verdict | Complete | 7/7 requirements |
-| 5 | Demo | In Progress | 1/4 requirements |
+| 5 | Demo | In Progress | 2/4 requirements |
 
 ---
 
@@ -29,6 +29,7 @@ None currently.
 
 | Date | Activity |
 |------|----------|
+| 2026-02-15 | Completed 05-02 synthetic sample builder + scripted demo runner |
 | 2026-02-15 | Completed 05-01 web UI and FastAPI static serving |
 | 2026-02-15 | Completed 04-03 scan pipeline + persisted scan retrieval API |
 | 2026-02-15 | Completed 04-02 verdict agent + deterministic risk synthesis |
@@ -49,8 +50,8 @@ None currently.
 
 ## Next Steps
 
-1. Run `05-02-PLAN.md` for synthetic suspicious sample + scripted demo runner
-2. Finish docs/storyboard/checklist work in `05-03`
+1. Run `05-03-PLAN.md` for README, storyboard, and recording checklist
+2. Record demo video manually using the new checklist (non-blocking follow-up)
 
 ---
 
