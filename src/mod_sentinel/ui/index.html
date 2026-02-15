@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PatchWarden Demo Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="panel hero-panel">
+        <p class="eyebrow">PatchWarden</p>
+        <h1>Mod Security Scan Console</h1>
+        <p class="subtitle">
+          Upload a Minecraft mod jar, run all analysis agents, and inspect the
+          final risk verdict with concrete indicators.
+        </p>
+      </section>
+
+      <section class="panel form-panel">
+        <form id="scan-form">
+          <div class="field-group">
+            <label for="mod-file">Mod file (.jar)</label>
+            <input id="mod-file" name="mod-file" type="file" accept=".jar" required />
+          </div>
+
+          <fieldset>
+            <legend>Optional author metadata (demo control)</legend>
+            <div class="grid">
+              <div class="field-group">
+                <label for="author-id">Author ID</label>
+                <input id="author-id" name="author-id" type="text" placeholder="new_creator" />
+              </div>
+              <div class="field-group">
+                <label for="mod-id">Mod ID</label>
+                <input id="mod-id" name="mod-id" type="text" placeholder="demo-suspicious" />
+              </div>
+              <div class="field-group">
+                <label for="account-age">Account age (days)</label>
+                <input id="account-age" name="account-age" type="number" min="0" />
+              </div>
+              <div class="field-group">
+                <label for="prior-mods">Prior mods</label>
+                <input id="prior-mods" name="prior-mods" type="number" min="0" />
+              </div>
+              <div class="field-group">
+                <label for="report-count">Report count</label>
+                <input id="report-count" name="report-count" type="number" min="0" />
+              </div>
+            </div>
+          </fieldset>
+
+          <button id="run-scan" type="submit">Upload and Scan</button>
+        </form>
+      </section>
+
+      <section class="panel status-panel">
+        <p id="status" role="status">Ready to scan.</p>
+      </section>
+
+      <section class="panel results-panel" id="results" hidden>
+        <div class="results-header">
+          <div>
+            <p class="eyebrow">Verdict</p>
+            <h2 id="risk-line">Awaiting scan</h2>
+          </div>
+          <p id="scan-id" class="mono"></p>
+        </div>
+        <p id="summary"></p>
+        <pre id="explanation"></pre>
+
+        <h3>Indicators</h3>
+        <ul id="indicators"></ul>
+      </section>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
