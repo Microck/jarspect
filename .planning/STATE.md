@@ -3,7 +3,7 @@
 ## Current Status
 
 **Current Phase:** 1 - Foundation (In Progress)
-**Next Action:** Execute plan 01-02 (upload + storage backends)
+**Next Action:** Execute plan 01-03 (intake extraction + scan route)
 
 ---
 
@@ -11,7 +11,7 @@
 
 | Phase | Name | Status | Progress |
 |-------|------|--------|----------|
-| 1 | Foundation | In Progress | 1/4 requirements |
+| 1 | Foundation | In Progress | 2/4 requirements |
 | 2 | Static Analysis | Not Started | 0/5 requirements |
 | 3 | Behavior Analysis | Not Started | 0/4 requirements |
 | 4 | Reputation & Verdict | Not Started | 0/7 requirements |
@@ -29,6 +29,7 @@ None currently.
 
 | Date | Activity |
 |------|----------|
+| 2026-02-15 | Completed 01-02 upload endpoint + storage abstraction |
 | 2026-02-15 | Completed 01-01 foundation bootstrap (settings + health API) |
 | 2026-02-08 | Project initialized, requirements defined, roadmap created |
 
@@ -36,8 +37,8 @@ None currently.
 
 ## Next Steps
 
-1. Run plan `01-02-PLAN.md` for upload endpoint + storage adapters
-2. Run plan `01-03-PLAN.md` for intake agent + scan endpoint
+1. Run plan `01-03-PLAN.md` for intake agent + scan endpoint
+2. Begin Phase 2 static analysis plans after intake endpoint is stable
 
 ---
 
