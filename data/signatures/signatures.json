@@ -1,0 +1,44 @@
+[
+  {
+    "id": "SIG-TOKEN-DROPPER-URL",
+    "kind": "token",
+    "value": "https://payload.example.invalid",
+    "severity": "high",
+    "description": "Synthetic suspicious remote payload URL token used in demo fixtures."
+  },
+  {
+    "id": "SIG-TOKEN-RUNTIME-EXEC",
+    "kind": "token",
+    "value": "Runtime.getRuntime().exec",
+    "severity": "high",
+    "description": "Process execution API marker often reviewed as high risk."
+  },
+  {
+    "id": "SIG-TOKEN-CLASS-FORNAME",
+    "kind": "token",
+    "value": "Class.forName",
+    "severity": "med",
+    "description": "Reflection token used in many obfuscation-aware scans."
+  },
+  {
+    "id": "SIG-TOKEN-FILES-WRITE",
+    "kind": "token",
+    "value": "Files.write",
+    "severity": "med",
+    "description": "File writing API token for persistence-oriented checks."
+  },
+  {
+    "id": "SIG-REGEX-LONG-BASE64",
+    "kind": "regex",
+    "value": "[A-Za-z0-9+/]{120,}={0,2}",
+    "severity": "med",
+    "description": "High-length base64-like blob marker used in obfuscation heuristics."
+  },
+  {
+    "id": "SIG-TOKEN-EXAMPLE-C2",
+    "kind": "token",
+    "value": "c2.modsentinel.example.invalid",
+    "severity": "high",
+    "description": "Synthetic command-and-control domain for safe demo matching."
+  }
+]
