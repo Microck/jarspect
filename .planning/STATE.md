@@ -2,8 +2,8 @@
 
 ## Current Status
 
-**Current Phase:** 2 - Static Analysis (In Progress)
-**Next Action:** Execute plan 02-02 (pattern catalog + matcher)
+**Current Phase:** 3 - Behavior Analysis (Ready)
+**Next Action:** Execute plan 03-01 (LLM abstraction + behavior agent stub)
 
 ---
 
@@ -12,8 +12,8 @@
 | Phase | Name | Status | Progress |
 |-------|------|--------|----------|
 | 1 | Foundation | Complete | 4/4 requirements |
-| 2 | Static Analysis | In Progress | 2/5 requirements |
-| 3 | Behavior Analysis | Not Started | 0/4 requirements |
+| 2 | Static Analysis | Complete | 5/5 requirements |
+| 3 | Behavior Analysis | In Progress | 0/4 requirements |
 | 4 | Reputation & Verdict | Not Started | 0/7 requirements |
 | 5 | Demo | Not Started | 0/4 requirements |
 
@@ -29,6 +29,9 @@ None currently.
 
 | Date | Activity |
 |------|----------|
+| 2026-02-15 | Completed 02-04 static agent + scan static payload integration |
+| 2026-02-15 | Completed 02-03 signature corpus + local/azure stores |
+| 2026-02-15 | Completed 02-02 suspicious pattern catalog + matcher |
 | 2026-02-15 | Completed 02-01 class extraction + decompiler wrapper |
 | 2026-02-15 | Completed 01-03 intake agent + /scan endpoint |
 | 2026-02-15 | Completed 01-02 upload endpoint + storage abstraction |
@@ -39,8 +42,8 @@ None currently.
 
 ## Next Steps
 
-1. Run `02-02-PLAN.md` for suspicious pattern catalog + matching engine
-2. Continue with signatures (`02-03`) and static endpoint integration (`02-04`)
+1. Run `03-01-PLAN.md` for stubbed behavior prediction pipeline
+2. Continue with parsing hardening (`03-02`) and scan integration (`03-03`)
 
 ---
 
