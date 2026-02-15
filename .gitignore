@@ -49,3 +49,4 @@ test-results/
 playwright-report/
 demo/.build/
 demo/suspicious_sample.jar
+.local-data/
