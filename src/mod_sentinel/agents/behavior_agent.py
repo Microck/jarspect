@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from mod_sentinel.llm.behavior_contract import normalize_behavior_payload
 from mod_sentinel.llm.client import LLMClient, build_llm_client
+from mod_sentinel.llm.json_extract import extract_first_json_object
 from mod_sentinel.llm.prompts import build_behavior_prompts
 from mod_sentinel.models.behavior import BehaviorPrediction
 from mod_sentinel.models.static import StaticFindings
@@ -16,5 +18,7 @@ class BehaviorAgent:
         snippets: list[str] | None = None,
     ) -> BehaviorPrediction:
         system_prompt, user_prompt = build_behavior_prompts(static_findings, snippets)
-        payload = self._llm_client.complete_json(system_prompt, user_prompt)
-        return BehaviorPrediction.model_validate(payload)
+        raw_response = self._llm_client.complete_text(system_prompt, user_prompt)
+        extracted = extract_first_json_object(raw_response)
+        normalized = normalize_behavior_payload(extracted)
+        return BehaviorPrediction.model_validate(normalized)
