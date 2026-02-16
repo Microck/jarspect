@@ -54,8 +54,8 @@ A multi-agent security scanner for game mods that detects malware before gamers 
 ## Constraints
 
 - **Timeline**: 5 weeks (Feb 10 - Mar 15, 2026)
-- **Tech Stack**: Python, Microsoft Agent Framework, Azure AI Foundry
-- **Model Access**: GPT-4o via Foundry
+- **Tech Stack**: Rust, Axum, YARA-X, optional Azure integrations
+- **Model Access**: Optional (heuristic-first verdict pipeline for deterministic runs)
 - **Storage**: Azure Blob Storage (mods), Azure AI Search (signatures)
 - **Decompilation**: Java decompilers for Minecraft mods
 - **Demo**: 2-minute video required

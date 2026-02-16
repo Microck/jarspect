@@ -4,8 +4,8 @@ Use this checklist when recording the 2-minute submission video.
 
 ## Pre-Recording Setup
 
-- [ ] Activate project virtual environment
-- [ ] Start API server: `python3 -m uvicorn jarspect.api.main:app`
+- [ ] Ensure Rust toolchain is installed
+- [ ] Start API server: `cargo run` (or `JARSPECT_BIND=127.0.0.1:8010 cargo run`)
 - [ ] Open browser at `http://localhost:8000/`
 - [ ] Open terminal in repo root
 - [ ] Keep `demo/storyboard.md` visible for timing cues

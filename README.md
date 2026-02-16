@@ -3,8 +3,8 @@
 Jarspect is a multi-agent security scanner for Minecraft mods (`.jar`) that
 helps players and communities detect suspicious behavior before installation.
 
-It combines deterministic static analysis, behavior prediction, author
-reputation scoring, and final verdict synthesis.
+It combines deterministic static analysis, YARA-X signature matching, behavior
+prediction, author reputation scoring, and final verdict synthesis.
 
 ## Pipeline
 
@@ -15,7 +15,7 @@ Upload (.jar)
 Intake Agent (loader + manifest inspection)
     |
     v
-Static Agent (decompile + pattern/signature matches)
+Static Agent (archive inspection + regex heuristics + YARA-X signature matches)
     |
     v
 Behavior Agent (predicted file/network/persistence behavior)
@@ -31,17 +31,22 @@ Persisted Scan Result (scan_id, retrievable via GET /scans/{scan_id})
 
 ## Local Setup
 
+Install Rust (stable toolchain), then:
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
+cargo build
 ```
 
 Run the API + web UI:
 
 ```bash
-python3 -m uvicorn jarspect.api.main:app --reload
+cargo run
+```
+
+If port `8000` is busy, run on another port:
+
+```bash
+JARSPECT_BIND=127.0.0.1:8010 cargo run
 ```
 
 Open:
@@ -86,8 +91,9 @@ Jarspect includes **synthetic demo fixtures only**.
 - `demo/suspicious_sample.jar` is generated locally for demonstrations.
 - No real malware samples are downloaded, bundled, or distributed.
 
-## Test Suite
+## Verification
 
 ```bash
-python3 -m pytest -q
+cargo check
+cargo test
 ```

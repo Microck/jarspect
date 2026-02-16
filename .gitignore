@@ -23,6 +23,7 @@ env/
 *.egg-info/
 dist/
 build/
+target/
 
 # Environment files (never commit secrets)
 .env
