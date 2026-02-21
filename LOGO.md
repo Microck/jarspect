@@ -27,49 +27,49 @@ A palette inspired by security terminals, radar screens, and the green/black aes
 
 ## Prompt 1: Abstract Geometric — Scan Prism
 ```
-abstract geometric logo for Jarspect, faceted hexagonal prism with horizontal scan beam passing through, sleek geometric, flat mint beam #00d9a5 on white, centered, balanced negative space, modernist --ar 1:1 --stylize 70 --no gradient shadow 3D photo background
+abstract geometric logo for Jarspect, voxel-inspired cube with a clean diagonal cut forming a shield silhouette, a single horizontal scan beam passing through like a file scan, sleek geometric, flat mint beam #00d9a5 on white, centered, balanced negative space, modernist --ar 1:1 --stylize 70 --seed 42 --no gradient --no drop shadow --no bevel --no 3D --no reflection --no photo --no texture --no background scene --no glow --no complex lighting
 ```
 
 ---
 
-## Prompt 2: Monoline — Sentinel Eye
+## Prompt 2: Monoline — Jar Scan
 ```
-monoline logo for Jarspect, continuous single-line eye shape with scan beam crossing pupil, precise geometry, two-color ink #0d1117 stroke with mint #00d9a5 scan beam, centered on white, balanced negative space, technical --ar 1:1 --stylize 75 --no gradient shadow 3D photo background
+monoline logo for Jarspect, continuous single stroke forming a .jar file icon (folded corner) with one pixel notch detail to hint Minecraft mods, a horizontal scan line crossing the file, precise geometry, two-color ink #0d1117 stroke with mint #00d9a5 scan line, centered on white, balanced negative space, technical --ar 1:1 --stylize 72 --seed 112 --no gradient --no drop shadow --no bevel --no 3D --no reflection --no photo --no texture --no background scene --no glow --no complex lighting
 ```
 
 ---
 
-## Prompt 3: Negative Space — Jar Shield
+## Prompt 3: Negative Space — Creeper-in-Jar Shield
 ```
-negative-space logo for Jarspect, shield outline with jar silhouette hidden in center negative space, bold reduction, monochromatic ink #0d1117, centered on white, balanced negative space, Swiss design --ar 1:1 --stylize 70 --no gradient shadow 3D photo background
+negative-space logo for Jarspect, shield outline with a Minecraft creeper face hidden as negative space inside a minimal .jar file silhouette, clever figure-ground, bold reduction, monochromatic ink #0d1117, centered on white, balanced negative space, Swiss design --ar 1:1 --stylize 68 --seed 77 --no gradient --no drop shadow --no bevel --no 3D --no reflection --no photo --no texture --no background scene --no glow --no complex lighting
 ```
 
 ---
 
 ## Prompt 4: Lettermark — JS Monogram
 ```
-lettermark logo for Jarspect, stylized JS monogram where J forms protective arc over S, refined proportions, flat ink #0d1117 with ember #ff6b35 dot accent, centered on white, balanced negative space, Paul Rand style --ar 1:1 --stylize 75 --no gradient shadow 3D photo background
+lettermark logo for Jarspect, stylized JS monogram with pixel-cut corners (voxel geometry) and a small "scan target" dot, refined proportions, flat ink #0d1117 with ember #ff6b35 accent dot, centered on white, balanced negative space, Paul Rand style --ar 1:1 --stylize 74 --seed 203 --no gradient --no drop shadow --no bevel --no 3D --no reflection --no photo --no texture --no background scene --no glow --no complex lighting
 ```
 
 ---
 
-## Prompt 5: Pictorial Symbol — Scan Grid
+## Prompt 5: Pictorial Symbol — Block + Signature Scan
 ```
-pictorial logo for Jarspect, grid of 9 dots forming shield shape with one dot highlighted as detected threat, modernist symbol, two-color ink #0d1117 dots with one ember #ff6b35 threat dot, centered on white, balanced negative space, tech-minimal --ar 1:1 --stylize 70 --no gradient shadow 3D photo background
+pictorial logo for Jarspect, minimal Minecraft block silhouette with magnifying glass overlay and a single "signature" tick mark inside the lens (YARA hint), bold reduction, two-color ink #0d1117 with mint #00d9a5 lens accent, centered on white, balanced negative space, Sagi Haviv style --ar 1:1 --stylize 70 --seed 88 --no gradient --no drop shadow --no bevel --no 3D --no reflection --no photo --no texture --no background scene --no glow --no complex lighting
 ```
 
 ---
 
 ## Prompt 6: Emblem — Security Badge
 ```
-emblem logo for Jarspect, circular badge with shield and horizontal scan lines, stamp-ready, flat mint #00d9a5 on ink #0d1117 background, centered, balanced negative space, architectural --ar 1:1 --stylize 65 --no gradient shadow 3D photo background
+emblem logo for Jarspect, circular badge with a simplified .jar file icon at center, a shield outline behind it, and a single horizontal scan line cutting through, stamp-ready, flat mint #00d9a5 on ink #0d1117 background, centered, balanced negative space, architectural --ar 1:1 --stylize 66 --seed 156 --no gradient --no drop shadow --no bevel --no 3D --no reflection --no photo --no texture --no background scene --no glow --no complex lighting
 ```
 
 ---
 
-## Prompt 7: Dynamic Mark — Pulse Wave
+## Prompt 7: Tech-minimal — Signature Wave
 ```
-abstract logo for Jarspect, concentric arc waves emanating from center dot like sonar pulse, dynamic movement, flat mint #00d9a5 waves with ink #0d1117 center, centered on white, balanced negative space, motion-implied --ar 1:1 --stylize 70 --no gradient shadow 3D photo background
+tech-minimal logo for Jarspect, grid-aligned "scan waveform" line that resolves into a pixel corner (voxel detail) and a small hash/checksum mark, suggests deterministic static analysis and signatures, flat mint #00d9a5 with ink #0d1117 accent, centered on white, balanced negative space, architectural --ar 1:1 --stylize 65 --seed 301 --no gradient --no drop shadow --no bevel --no 3D --no reflection --no photo --no texture --no background scene --no glow --no complex lighting
 ```
 
 ---
