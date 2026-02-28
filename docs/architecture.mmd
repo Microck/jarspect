@@ -1,0 +1,49 @@
+graph TB
+  subgraph "Client"
+    UI[Browser UI\nhttp://localhost:8000/]
+    CLI[bash scripts/demo_run.sh]
+  end
+
+  subgraph "Jarspect (Axum server)"
+    R[Router]
+    H[GET /health]
+    UP[POST /upload\n-> upload_id]
+    SC[POST /scan\n(upload_id + author)\n-> scan_id + result]
+    GET[GET /scans/{scan_id}]
+  end
+
+  subgraph "Local storage"
+    UPL[(.local-data/uploads/*.jar)]
+    SCS[(.local-data/scans/{scan_id}.json)]
+  end
+
+  subgraph "Scan pipeline"
+    INTK[Intake\n(unzip + enumerate)]
+    STAT[Static analysis\n(regex + signatures + YARA-X)]
+    BEH[Behavior prediction\n(URLs/files/persistence)]
+    REP[Reputation scoring\n(author metadata)]
+    VER[Verdict\n(risk tier + score + indicators)]
+  end
+
+  subgraph "Signature data"
+    SIGJSON[data/signatures/signatures.json]
+    YARA[data/signatures/rules.yar]
+  end
+
+  UI --> R
+  CLI --> R
+
+  R --> H
+  R --> UP
+  R --> SC
+  R --> GET
+
+  UP -->|write jar| UPL
+  SC -->|read jar| UPL
+
+  SC --> INTK --> STAT --> BEH --> REP --> VER
+  STAT --> SIGJSON
+  STAT --> YARA
+
+  VER -->|persist result| SCS
+  GET -->|read result| SCS

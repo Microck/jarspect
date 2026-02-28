@@ -51,3 +51,15 @@ playwright-report/
 demo/.build/
 demo/suspicious_sample.jar
 .local-data/
+
+# Logs
+*.log
+server.log
+mcp-server.log
+mcp-server-error.log
+
+# Rust lock file (binary projects may choose to track this; ignoring for library-style repos)
+# Cargo.lock
+
+# local.settings.json (Functions / tool secrets)
+local.settings.json
