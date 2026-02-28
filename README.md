@@ -6,7 +6,7 @@
 
 **Upload a `.jar`, get a risk verdict with explainable indicators before you install.**
 
-Jarspect is a security scanner for Minecraft mods. It unpacks a `.jar`, runs layered deterministic static analysis (regex patterns + a JSON signature corpus + YARA-X rules), infers likely runtime behavior, and optionally folds in author reputation — producing a final risk tier, 0–100 score, and a list of concrete indicators you can audit.
+Jarspect is a security scanner for Minecraft mods. It unpacks a `.jar`, runs layered deterministic static analysis (regex patterns + a JSON signature corpus + YARA-X rules), infers likely runtime behavior, and optionally folds in author reputation, producing a final risk tier, 0–100 score, and a list of concrete indicators you can audit.
 
 ---
 
@@ -36,10 +36,10 @@ GET /scans/{scan_id}  → fetch full result at any time
 ```
 
 **Key properties:**
-- **No live malware needed** — ships with synthetic fixtures safe for demos
-- **Layered signals** — patterns, signatures, YARA-X, behavior inference, and reputation are all independent and additive
-- **Fully explainable** — every indicator carries `source`, `id`, `severity`, `file_path`, `evidence`, and `rationale`
-- **Single binary** — `cargo run` starts the HTTP server and the web UI on the same port
+- **No live malware needed** - ships with synthetic fixtures safe for demos
+- **Layered signals** - patterns, signatures, YARA-X, behavior inference, and reputation are all independent and additive
+- **Fully explainable** - every indicator carries `source`, `id`, `severity`, `file_path`, `evidence`, and `rationale`
+- **Single binary** - `cargo run` starts the HTTP server and the web UI on the same port
 
 ---
 
@@ -52,7 +52,7 @@ GET /scans/{scan_id}  → fetch full result at any time
 - Behavior inference: predicts outbound network activity, file-system writes, and persistence from static findings
 - Reputation scoring: composite author trust score from account age, prior mod count, and report activity
 - Verdict synthesis: weighted severity scoring across all layers → risk tier + 0–100 score
-- Persisted scan results — re-fetch any scan by `scan_id` without re-running analysis
+- Persisted scan results - re-fetch any scan by `scan_id` without re-running analysis
 - Browser UI with real-time status, indicator list, and scan-ID display
 - Demo runner (`scripts/demo_run.sh`) that builds a synthetic suspicious sample and exercises all endpoints
 
@@ -119,7 +119,7 @@ All persistent data lands in `.local-data/` relative to the working directory (a
 
 The full flow is three HTTP calls:
 
-**Step 1 — Upload the `.jar`**
+**Step 1: Upload the `.jar`**
 
 ```bash
 curl -X POST http://localhost:8000/upload \
@@ -135,7 +135,7 @@ curl -X POST http://localhost:8000/upload \
 }
 ```
 
-**Step 2 — Run the scan**
+**Step 2: Run the scan**
 
 ```bash
 curl -X POST http://localhost:8000/scan \
@@ -154,7 +154,7 @@ curl -X POST http://localhost:8000/scan \
 
 The response contains the full `ScanRunResponse` (see [Data Model](#data-model)) including the `scan_id`.
 
-**Step 3 — Fetch results**
+**Step 3: Fetch results**
 
 ```bash
 curl http://localhost:8000/scans/<scan_id>
@@ -169,7 +169,7 @@ curl http://localhost:8000/scans/<scan_id>
 | `JARSPECT_BIND` | `127.0.0.1:8000` | Host and port the HTTP server binds to |
 | `RUST_LOG` | `jarspect=info,tower_http=info` | Log verbosity (uses `tracing-subscriber` env-filter syntax) |
 
-Example — bind to all interfaces on port 9000 with debug logging:
+Example: bind to all interfaces on port 9000 with debug logging:
 
 ```bash
 JARSPECT_BIND=0.0.0.0:9000 RUST_LOG=debug cargo run
@@ -315,9 +315,9 @@ Open [http://localhost:8000/](http://localhost:8000/) after starting the server.
 The single-page console lets you:
 
 1. **Pick a `.jar` file** from disk using the file picker
-2. **Fill in optional author metadata** (Author ID, Mod ID, account age, prior mod count, report count) — useful for exercising the reputation layer in demos
-3. **Click "Upload and Scan"** — the UI calls `/upload` then `/scan` and streams status messages
-4. **Inspect the verdict panel** — displays risk tier, risk score, summary, explanation prose, and a scrollable indicator list with severity badges and evidence text
+2. **Fill in optional author metadata** (Author ID, Mod ID, account age, prior mod count, report count) - useful for exercising the reputation layer in demos
+3. **Click "Upload and Scan"** - the UI calls `/upload` then `/scan` and streams status messages
+4. **Inspect the verdict panel** - displays risk tier, risk score, summary, explanation prose, and a scrollable indicator list with severity badges and evidence text
 
 The `scan_id` is shown in the results header so you can re-fetch results later with `GET /scans/{scan_id}`.
 
@@ -334,16 +334,16 @@ The scan pipeline runs entirely in a single Axum request handler:
 ```
 POST /scan
   │
-  ├─ Intake        read_archive_entries()  — unzip .jar, decode text, count .class files
-  ├─ Static        run_static_analysis()   — regex patterns + JSON signatures + YARA-X per entry
-  ├─ Behavior      infer_behavior()        — derive predicted URLs / writes / persistence from static matches
-  ├─ Reputation    score_author()          — composite trust score (optional; only when author supplied)
-  └─ Verdict       build_verdict()         — weighted severity sum → risk_score clamped 0–100 → risk_tier
+  ├─ Intake        read_archive_entries()  - unzip .jar, decode text, count .class files
+  ├─ Static        run_static_analysis()   - regex patterns + JSON signatures + YARA-X per entry
+  ├─ Behavior      infer_behavior()        - derive predicted URLs / writes / persistence from static matches
+  ├─ Reputation    score_author()          - composite trust score (optional; only when author supplied)
+  └─ Verdict       build_verdict()         - weighted severity sum → risk_score clamped 0–100 → risk_tier
 ```
 
 **Signature loading** happens once at startup:
-- `data/signatures/signatures.json` — loaded via `load_signatures()`
-- `data/signatures/rules.yar` — compiled via `yara_x::Compiler` in `load_yara_rules()`, stored as `Arc<Rules>`
+- `data/signatures/signatures.json` - loaded via `load_signatures()`
+- `data/signatures/rules.yar` - compiled via `yara_x::Compiler` in `load_yara_rules()`, stored as `Arc<Rules>`
 
 Both are held in `AppState` and shared across requests via `Arc`.
 
@@ -385,7 +385,7 @@ Each `Indicator` object:
 
 ## Safety and Limitations
 
-- **Synthetic fixtures only.** The bundled signatures and YARA rules match strings from `demo/suspicious_sample.jar` — a synthetic artifact built by `demo/build_sample.sh`. No real malware samples are included.
+- **Synthetic fixtures only.** The bundled signatures and YARA rules match strings from `demo/suspicious_sample.jar` - a synthetic artifact built by `demo/build_sample.sh`. No real malware samples are included.
 - **Demo-grade behavior inference.** The behavior layer is deterministic heuristics, not dynamic analysis. It predicts plausible activity from static signals but does not execute code.
 - **Demo-grade reputation scoring.** The reputation layer scores author metadata using a simple linear formula. It is not connected to a real registry or threat intelligence feed.
 - **No sandbox.** Jarspect does not execute or load any `.class` files. All analysis is purely static (byte/text level).
@@ -430,7 +430,7 @@ docs/brand/                         logo assets
   scans/{scan_id}.json              persisted scan results
 ```
 
-To add new signatures, append entries to `data/signatures/signatures.json`. To add YARA rules, append rules to `data/signatures/rules.yar` — the compiler runs at startup and will report any syntax errors.
+To add new signatures, append entries to `data/signatures/signatures.json`. To add YARA rules, append rules to `data/signatures/rules.yar`. The compiler runs at startup and will report any syntax errors.
 
 ---
 
@@ -444,7 +444,7 @@ For bug reports, include the `scan_id` and the anonymized `.jar` that triggered 
 
 ## License
 
-Apache-2.0 — see [`LICENSE`](LICENSE).
+Apache-2.0. See [`LICENSE`](LICENSE).
 
 ---
 
