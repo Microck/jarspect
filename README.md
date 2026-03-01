@@ -6,6 +6,8 @@
 
 **Upload a `.jar`, get a risk verdict with explainable indicators before you install.**
 
+The name **Jarspect** is a portmanteau of **JAR** (Java Archive) and **Inspect**, reflecting its mission to provide deep, automated inspection of game mods for hidden threats.
+
 Jarspect is a security scanner for Minecraft mods. It unpacks a `.jar`, runs layered deterministic static analysis (regex patterns + a JSON signature corpus + YARA-X rules), infers likely runtime behavior, and optionally folds in author reputation, producing a final risk tier, 0–100 score, and a list of concrete indicators you can audit.
 
 ---
