@@ -4,6 +4,97 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_BASE_URL="${JARSPECT_API_URL:-http://localhost:8000}"
 JAR_PATH="${ROOT_DIR}/demo/suspicious_sample.jar"
+SERVER_PID=""
+SERVER_LOG=""
+
+cleanup() {
+  if [ -n "${SERVER_PID}" ] && kill -0 "${SERVER_PID}" 2>/dev/null; then
+    kill "${SERVER_PID}" 2>/dev/null || true
+    wait "${SERVER_PID}" 2>/dev/null || true
+  fi
+}
+
+trap cleanup EXIT
+
+is_jarspect_api() {
+  local base_url="$1"
+  local health_response=""
+
+  if ! health_response="$(curl -sS --max-time 2 "${base_url}/health" 2>/dev/null)"; then
+    return 1
+  fi
+
+  HEALTH_JSON="${health_response}" node -e '
+const payload = JSON.parse(process.env.HEALTH_JSON || "{}");
+process.exit(payload.service === "jarspect" ? 0 : 1);
+' >/dev/null 2>&1
+}
+
+wait_for_jarspect_api() {
+  local base_url="$1"
+  local retries="$2"
+  local attempt=0
+
+  until is_jarspect_api "${base_url}"; do
+    attempt=$((attempt + 1))
+    if [ "${attempt}" -ge "${retries}" ]; then
+      return 1
+    fi
+    sleep 0.2
+  done
+
+  return 0
+}
+
+pick_free_port() {
+  local port=""
+  for port in $(seq 18000 18100); do
+    if ! ss -ltn "sport = :${port}" | grep -q LISTEN; then
+      printf '%s' "${port}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+start_local_server() {
+  local port=""
+  port="$(pick_free_port)" || {
+    echo "[demo] Unable to find a free local port in 18000-18100" >&2
+    exit 1
+  }
+
+  mkdir -p "${ROOT_DIR}/.local-data"
+  SERVER_LOG="${ROOT_DIR}/.local-data/demo-server.log"
+  API_BASE_URL="http://127.0.0.1:${port}"
+
+  echo "[demo] Starting local Jarspect API at ${API_BASE_URL} ..."
+  (
+    cd "${ROOT_DIR}"
+    JARSPECT_BIND="127.0.0.1:${port}" cargo run >"${SERVER_LOG}" 2>&1
+  ) &
+  SERVER_PID=$!
+
+  if ! wait_for_jarspect_api "${API_BASE_URL}" 60; then
+    echo "[demo] Failed to start Jarspect API. Last server log lines:" >&2
+    if [ -f "${SERVER_LOG}" ]; then
+      tail -n 40 "${SERVER_LOG}" >&2 || true
+    fi
+    exit 1
+  fi
+}
+
+if is_jarspect_api "${API_BASE_URL}"; then
+  echo "[demo] Using existing Jarspect API at ${API_BASE_URL}"
+elif [ -n "${JARSPECT_API_URL:-}" ]; then
+  echo "[demo] JARSPECT_API_URL points to a non-Jarspect service: ${API_BASE_URL}" >&2
+  echo "[demo] Expected GET /health to return JSON with {\"service\":\"jarspect\"}." >&2
+  exit 1
+else
+  echo "[demo] No Jarspect API detected at ${API_BASE_URL}; auto-starting one."
+  start_local_server
+fi
 
 echo "[demo] Building synthetic sample jar..."
 bash "${ROOT_DIR}/demo/build_sample.sh" >/dev/null
