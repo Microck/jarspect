@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use axum::extract::{Multipart, Path as AxumPath, State};
+use axum::extract::{DefaultBodyLimit, Multipart, Path as AxumPath, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, post};
@@ -199,7 +199,7 @@ async fn main() -> Result<()> {
         upload_max_bytes: 50 * 1024 * 1024,
     };
 
-    let bind_addr = std::env::var("JARSPECT_BIND").unwrap_or_else(|_| "127.0.0.1:8000".to_string());
+    let bind_addr = std::env::var("JARSPECT_BIND").unwrap_or_else(|_| "127.0.0.1:18000".to_string());
 
     let app = Router::new()
         .route("/", get(index))
@@ -208,6 +208,7 @@ async fn main() -> Result<()> {
         .route("/scan", post(scan))
         .route("/scans/{scan_id}", get(get_scan))
         .nest_service("/static", ServeDir::new(web_dir))
+        .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
@@ -406,7 +407,7 @@ fn run_static_analysis(
             "NET-URL",
             "Outbound URL pattern",
             "network",
-            "high",
+            "low",
             Regex::new(r"https?://[A-Za-z0-9._/-]+\.[A-Za-z]{2,}").unwrap(),
             "Found hardcoded network URL in archive payload.",
         ),
@@ -637,14 +638,25 @@ fn build_verdict(
     }
 
     let mut score = 0.0;
+    let mut id_scores: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+
+    // Only count the maximum severity score for each unique indicator ID
     for indicator in &all_indicators {
-        score += match indicator.severity.as_str() {
+        let points = match indicator.severity.as_str() {
             "critical" => 28.0,
-            "high" => 18.0,
-            "med" => 10.0,
-            "low" => 5.0,
-            _ => 8.0,
+            "high" => 10.0,
+            "med" => 3.0,
+            "low" => 1.0,
+            _ => 2.0,
         };
+        let current = id_scores.entry(indicator.id.clone()).or_insert(0.0);
+        if points > *current {
+            *current = points;
+        }
+    }
+
+    for points in id_scores.values() {
+        score += points;
     }
 
     if let Some(rep) = reputation {
