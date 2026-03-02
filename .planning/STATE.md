@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Upload a `.jar`, get a risk verdict with explainable indicators before you install.
-**Current focus:** Milestone v2.0 Logic rework (defining requirements)
+**Current focus:** Phase 1 - Bytecode Evidence Core
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-02 — Milestone v2.0 Logic rework started
+Phase: 1 of 6 (Bytecode Evidence Core)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-03-02 — Roadmap created for milestone v2.0
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -45,5 +45,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Milestone initialized (questioning complete)
+Stopped at: Roadmap created; ready to plan Phase 1
 Resume file: None

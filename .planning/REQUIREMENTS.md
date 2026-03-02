@@ -85,38 +85,38 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BYTE-01 | Phase - | Pending |
-| BYTE-02 | Phase - | Pending |
-| BYTE-03 | Phase - | Pending |
-| DETC-01 | Phase - | Pending |
-| DETC-02 | Phase - | Pending |
-| DETC-03 | Phase - | Pending |
-| DETC-04 | Phase - | Pending |
-| DETC-05 | Phase - | Pending |
-| DETC-06 | Phase - | Pending |
-| DETC-07 | Phase - | Pending |
-| DETC-08 | Phase - | Pending |
-| ARCH-01 | Phase - | Pending |
-| ARCH-02 | Phase - | Pending |
-| YARA-01 | Phase - | Pending |
-| YARA-02 | Phase - | Pending |
-| YARA-03 | Phase - | Pending |
-| SCOR-01 | Phase - | Pending |
-| SCOR-02 | Phase - | Pending |
-| SCOR-03 | Phase - | Pending |
-| BEHV-01 | Phase - | Pending |
-| BEHV-02 | Phase - | Pending |
-| API-01 | Phase - | Pending |
-| EVID-01 | Phase - | Pending |
-| UI-01 | Phase - | Pending |
-| TEST-01 | Phase - | Pending |
-| TEST-02 | Phase - | Pending |
-| TEST-03 | Phase - | Pending |
+| BYTE-01 | Phase 1 | Pending |
+| BYTE-02 | Phase 1 | Pending |
+| BYTE-03 | Phase 1 | Pending |
+| DETC-01 | Phase 3 | Pending |
+| DETC-02 | Phase 3 | Pending |
+| DETC-03 | Phase 3 | Pending |
+| DETC-04 | Phase 3 | Pending |
+| DETC-05 | Phase 3 | Pending |
+| DETC-06 | Phase 3 | Pending |
+| DETC-07 | Phase 3 | Pending |
+| DETC-08 | Phase 3 | Pending |
+| ARCH-01 | Phase 2 | Pending |
+| ARCH-02 | Phase 2 | Pending |
+| YARA-01 | Phase 2 | Pending |
+| YARA-02 | Phase 2 | Pending |
+| YARA-03 | Phase 2 | Pending |
+| SCOR-01 | Phase 4 | Pending |
+| SCOR-02 | Phase 4 | Pending |
+| SCOR-03 | Phase 4 | Pending |
+| BEHV-01 | Phase 4 | Pending |
+| BEHV-02 | Phase 4 | Pending |
+| API-01 | Phase 1 | Pending |
+| EVID-01 | Phase 1 | Pending |
+| UI-01 | Phase 5 | Pending |
+| TEST-01 | Phase 6 | Pending |
+| TEST-02 | Phase 6 | Pending |
+| TEST-03 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 (expected until ROADMAP.md is created)
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-02*
