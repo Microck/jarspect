@@ -630,9 +630,11 @@ mod tests {
 
         let findings = analyze_metadata(entries.as_slice());
 
-        assert!(findings
-            .iter()
-            .any(|finding| finding.id == "META-SPIGOT-MAINCLASS-MISSING"));
+        assert!(
+            findings
+                .iter()
+                .any(|finding| finding.id == "META-SPIGOT-MAINCLASS-MISSING")
+        );
     }
 
     fn archive_entry(path: &str, text: &str) -> ArchiveEntry {

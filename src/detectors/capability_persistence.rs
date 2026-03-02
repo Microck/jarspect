@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::analysis::Location;
 
-use super::DetectorFinding;
 use super::index::{EvidenceIndex, InvokeHit};
 use super::spec::{contains_any_token, matching_token_strings};
+use super::DetectorFinding;
 
 const DETECTOR_ID: &str = "DETC-05.PERSISTENCE";
 const PERSISTENCE_TOKENS: &[&str] = &[

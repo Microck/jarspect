@@ -60,12 +60,18 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let rationale = if extracted_commands.is_empty() {
         format!(
             "Matched execution primitives ({}), but found no correlated command-like strings in the same class.",
-            matched_primitives.into_iter().collect::<Vec<_>>().join(", ")
+            matched_primitives
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", ")
         )
     } else {
         format!(
             "Matched execution primitives ({}) with {} correlated command-like string(s) in the same class.",
-            matched_primitives.into_iter().collect::<Vec<_>>().join(", "),
+            matched_primitives
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", "),
             extracted_commands.len()
         )
     };

@@ -84,7 +84,10 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let rationale = if extracted_urls.is_empty() {
         format!(
             "Matched networking primitives ({}); no correlated URL string evidence in triggering classes.",
-            matched_primitives.into_iter().collect::<Vec<_>>().join(", ")
+            matched_primitives
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", ")
         )
     } else {
         format!(

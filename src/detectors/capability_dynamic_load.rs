@@ -87,12 +87,18 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let rationale = if correlated_sensitive_strings.is_empty() {
         format!(
             "Matched dynamic-loading primitives ({}), without correlated sensitive class/method tokens in the same class.",
-            matched_primitives.into_iter().collect::<Vec<_>>().join(", ")
+            matched_primitives
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", ")
         )
     } else {
         format!(
             "Matched dynamic-loading primitives ({}) with {} correlated sensitive string token(s) in the same class.",
-            matched_primitives.into_iter().collect::<Vec<_>>().join(", "),
+            matched_primitives
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", "),
             correlated_sensitive_strings.len()
         )
     };
