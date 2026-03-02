@@ -60,7 +60,12 @@ Plans:
   2. Scan report flags outbound networking primitives and includes URL evidence when present in the bytecode-derived evidence set.
   3. Scan report flags dynamic loading and jar/filesystem modification patterns with evidence tied to the relevant classes/methods.
   4. Scan report flags persistence, unsafe deserialization, JNI/native loading, and credential/token theft indicators with traceable evidence.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] `03-capability-detectors-01-PLAN.md` — Add detector framework + implement DETC-01/02/03 (exec/network/dynamic load) with FP controls and callsite evidence
+- [ ] `03-capability-detectors-02-PLAN.md` — Implement DETC-04/05 (fs/jar modification + persistence) with correlation-based severity gates
+- [ ] `03-capability-detectors-03-PLAN.md` — Implement DETC-06/07/08 (unsafe deserialization + native loading + credential theft) with conservative severity and evidence correlation
 
 ### Phase 4: Scoring + Behavior Prediction
 **Goal**: The verdict (tier + score) is stable, explainable, and driven by capability evidence, including evidence-derived behavior predictions.
