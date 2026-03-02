@@ -9,18 +9,18 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 ## Current Position
 
-Phase: 3 of 6 (Capability Detectors)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-03-02 - Completed 03-capability-detectors-03-PLAN.md
+Phase: 4 of 6 (Scoring + Behavior Prediction)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-03-02 - Completed 04-scoring-behavior-prediction-01-PLAN.md
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 9.6 min
+- Total plans completed: 10
+- Average duration: 9.8 min
 
 **By Phase:**
 
@@ -29,6 +29,7 @@ Progress: [██████░░░░] 60%
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
 | 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
 | 03-capability-detectors | 3 | 30 min | 10.0 min |
+| 04-scoring-behavior-prediction | 1 | 12 min | 12.0 min |
 
 ## Accumulated Context
 
@@ -59,6 +60,9 @@ Progress: [██████░░░░] 60%
 | 03-capability-detectors-03 | Classified DETC-06 as `category=vulnerability` with fixed `med` severity. | Keeps unsafe deserialization signal as vulnerability-risk without overstating exploitability from static evidence alone. |
 | 03-capability-detectors-03 | Escalated DETC-07 to `high` only with native-load invoke plus embedded native entry or suspicious path markers. | Maintains conservative defaults while still surfacing stronger JNI/native loading risk when corroborated by archive/string evidence. |
 | 03-capability-detectors-03 | Implemented DETC-08 with strict same-class correlation gates (`token-only=low`, `token+read=med`, `token+read+network=high`). | Preserves observability for token markers while reducing false positives from standalone strings or unrelated network usage. |
+| 04-scoring-behavior-prediction-01 | Normalized detector IDs and freeform categories into canonical scoring buckets, including `obfuscation -> dynamic_loading`. | Enables source-agnostic dedup and stable scoring across detector/pattern/signature evidence. |
+| 04-scoring-behavior-prediction-01 | Applied integer post-cap category allocation and reused post-cap points in `Top contributors` lines. | Keeps explanation math exactly aligned with score computation and deterministic under ties/caps. |
+| 04-scoring-behavior-prediction-01 | Capped reputation adjustment at +19 and kept CLEAN gated on zero deduped static indicators plus zero reputation points. | Prevents reputation-only escalation to HIGH/CRITICAL while preserving explicit CLEAN semantics. |
 
 ### Pending Todos
 
@@ -70,9 +74,10 @@ Progress: [██████░░░░] 60%
 - `scripts/demo_run.sh` auto-start path remains sensitive to first-run compile timing; prebuilding with `cargo build` avoids timeout in verification flows.
 - Demo fixture now compiles `DemoMod.class` when JDK tools are present, but fallback environments without `javac` still produce source-only jars.
 - Java fixture compilation emits deprecation warnings from JDK tooling; non-blocking for scan behavior.
+- `src/scoring.rs` is implemented and tested but not yet wired into `build_verdict`; integration is pending Plan 04-03.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 03-capability-detectors-03-PLAN.md
-Resume file: .planning/phases/04-scoring-behavior-prediction/04-scoring-behavior-prediction-01-PLAN.md
+Stopped at: Completed 04-scoring-behavior-prediction-01-PLAN.md
+Resume file: .planning/phases/04-scoring-behavior-prediction/04-scoring-behavior-prediction-02-PLAN.md
