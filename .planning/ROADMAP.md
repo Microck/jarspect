@@ -44,7 +44,12 @@ Plans:
   2. Scan output includes parsed mod metadata + manifest signals and flags inconsistencies / high-suspicion attributes as findings.
   3. YARA-X runs against each inflated archive entry (classes/resources), and YARA evidence references the specific entry path (not the jar blob).
   4. YARA indicators report severity derived from rule metadata (or defined conventions) and demo vs production rulepacks remain separated in reporting.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] `02-archive-yara-fidelity-01-PLAN.md` — Add recursive jar-in-jar traversal with stable nested paths + safety limits (ARCH-01)
+- [ ] `02-archive-yara-fidelity-02-PLAN.md` — Run YARA per inflated entry with severity-from-metadata and demo/prod rulepack separation (YARA-01/02/03)
+- [ ] `02-archive-yara-fidelity-03-PLAN.md` — Parse mod metadata + manifest signals and emit suspicious/inconsistency findings (ARCH-02)
 
 ### Phase 3: Capability Detectors
 **Goal**: The scan reliably detects real-world capability patterns from compiled bytecode with concrete evidence, not synthetic placeholders.
