@@ -103,7 +103,11 @@ Plans:
   1. Safe, compiled fixtures exist such that scanning them fires each capability detector on bytecode-derived evidence (no mocks).
   2. An end-to-end scan test exercises `/scan` on a fixture jar and asserts expected indicators and tier outcomes.
   3. The demo sample still triggers demo signatures/rules so the existing demo flow remains intact.
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] `06-regression-fixtures-01-PLAN.md` — Expose scan pipeline entrypoint for tests (no HTTP) + add tempfile + lock plan list
+- [ ] `06-regression-fixtures-02-PLAN.md` — Add committed bytecode fixtures + E2E regression tests for TEST-01/02/03 (incl demo jar)
 
 ## Progress
 
@@ -117,4 +121,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Capability Detectors | 0/TBD | Not started | - |
 | 4. Scoring + Behavior Prediction | 0/TBD | Not started | - |
 | 5. UI Verdict Rendering | 0/TBD | Not started | - |
-| 6. Regression Fixtures | 0/TBD | Not started | - |
+| 6. Regression Fixtures | 0/2 | Not started | - |
