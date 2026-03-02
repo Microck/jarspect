@@ -363,3 +363,141 @@ fn persistence_markers() -> &'static [&'static str] {
         "rc.local",
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn indicator(
+        id: &str,
+        source: &str,
+        extracted_urls: Option<Vec<&str>>,
+        extracted_commands: Option<Vec<&str>>,
+        extracted_paths: Option<Vec<&str>>,
+        evidence: &str,
+        rationale: &str,
+    ) -> crate::Indicator {
+        crate::Indicator {
+            source: source.to_string(),
+            id: id.to_string(),
+            title: "test indicator".to_string(),
+            category: "capability".to_string(),
+            severity: "med".to_string(),
+            file_path: None,
+            evidence: evidence.to_string(),
+            rationale: rationale.to_string(),
+            evidence_locations: None,
+            extracted_urls: extracted_urls
+                .map(|values| values.into_iter().map(String::from).collect()),
+            extracted_commands: extracted_commands
+                .map(|values| values.into_iter().map(String::from).collect()),
+            extracted_file_paths: extracted_paths
+                .map(|values| values.into_iter().map(String::from).collect()),
+        }
+    }
+
+    #[test]
+    fn normalizes_extracted_urls_with_lowercase_host() {
+        let indicators = vec![indicator(
+            "DETC-02.NETWORK",
+            "detector",
+            Some(vec!["https://Example.com/a?b=c"]),
+            None,
+            None,
+            "network primitive",
+            "network primitive",
+        )];
+
+        let derived = derive_behavior(&indicators);
+        assert!(derived
+            .predicted_network_urls
+            .iter()
+            .any(|url| url == "https://example.com/a"));
+    }
+
+    #[test]
+    fn empty_observables_have_zero_confidence() {
+        let indicators = vec![indicator(
+            "META-01",
+            "metadata",
+            None,
+            None,
+            None,
+            "harmless metadata",
+            "harmless metadata",
+        )];
+
+        let derived = derive_behavior(&indicators);
+        assert!(derived.predicted_network_urls.is_empty());
+        assert!(derived.predicted_commands.is_empty());
+        assert!(derived.predicted_file_writes.is_empty());
+        assert!(derived.predicted_persistence.is_empty());
+        assert!(derived.predictions.is_empty());
+        assert_eq!(derived.confidence, 0.0);
+    }
+
+    #[test]
+    fn traceable_predictions_reference_supporting_indicators() {
+        let indicators = vec![indicator(
+            "DETC-02.NETWORK_URL",
+            "detector",
+            Some(vec!["https://example.com/a"]),
+            None,
+            None,
+            "network evidence",
+            "network evidence",
+        )];
+
+        let derived = derive_behavior(&indicators);
+        assert!(derived
+            .predictions
+            .iter()
+            .any(|prediction| !prediction.supporting_indicator_ids.is_empty()));
+
+        let traceable = derived
+            .predictions
+            .iter()
+            .find(|prediction| !prediction.supporting_indicator_ids.is_empty())
+            .expect("expected at least one traceable prediction");
+        let supporting_id = traceable
+            .supporting_indicator_ids
+            .first()
+            .expect("expected at least one supporting indicator id")
+            .clone();
+
+        assert!(traceable.rationale.contains(supporting_id.as_str()));
+        assert_eq!(traceable.confidence, 0.9);
+    }
+
+    #[test]
+    fn outputs_do_not_include_legacy_placeholder_domains() {
+        let indicators = vec![indicator(
+            "DETC-02.NETWORK_URL",
+            "detector",
+            Some(vec!["https://example.com/a"]),
+            Some(vec!["curl https://example.com/a"]),
+            Some(vec!["mods/cache.bin"]),
+            "network evidence",
+            "command and file-write evidence",
+        )];
+
+        let derived = derive_behavior(&indicators);
+
+        for value in derived
+            .predicted_network_urls
+            .iter()
+            .chain(derived.predicted_commands.iter())
+            .chain(derived.predicted_file_writes.iter())
+            .chain(derived.predicted_persistence.iter())
+            .chain(
+                derived
+                    .predictions
+                    .iter()
+                    .map(|prediction| &prediction.value),
+            )
+        {
+            assert!(!value.contains("example.invalid"));
+            assert!(!value.contains("payload.example"));
+        }
+    }
+}

@@ -18,6 +18,7 @@ use uuid::Uuid;
 use yara_x::Compiler;
 
 mod analysis;
+mod behavior;
 mod detectors;
 mod scoring;
 pub use analysis::ArchiveEntry;
