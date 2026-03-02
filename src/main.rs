@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::{Cursor, Read};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -17,9 +16,9 @@ use tower_http::services::ServeDir;
 use tracing::info;
 use uuid::Uuid;
 use yara_x::{Compiler, Rules, Scanner};
-use zip::ZipArchive;
 
 mod analysis;
+pub use analysis::ArchiveEntry;
 
 #[derive(Clone)]
 struct AppState {
@@ -203,7 +202,8 @@ async fn main() -> Result<()> {
         upload_max_bytes: 50 * 1024 * 1024,
     };
 
-    let bind_addr = std::env::var("JARSPECT_BIND").unwrap_or_else(|_| "127.0.0.1:18000".to_string());
+    let bind_addr =
+        std::env::var("JARSPECT_BIND").unwrap_or_else(|_| "127.0.0.1:18000".to_string());
 
     let app = Router::new()
         .route("/", get(index))
@@ -297,7 +297,8 @@ async fn scan(
     let bytes = fs::read(&upload_path)
         .await
         .map_err(|e| AppError::internal(format!("Failed to read upload: {e}")))?;
-    let entries = read_archive_entries(&bytes)?;
+    let root_label = format!("{}.jar", request.upload_id);
+    let entries = analysis::read_archive_entries_recursive(root_label.as_str(), &bytes)?;
 
     let intake = IntakeResult {
         upload_id: request.upload_id.clone(),
@@ -361,36 +362,6 @@ async fn get_scan(
     Ok(Json(payload))
 }
 
-#[derive(Debug)]
-struct ArchiveEntry {
-    path: String,
-    bytes: Vec<u8>,
-    text: String,
-}
-
-fn read_archive_entries(bytes: &[u8]) -> Result<Vec<ArchiveEntry>> {
-    let cursor = Cursor::new(bytes.to_vec());
-    let mut archive = ZipArchive::new(cursor).context("Invalid .jar archive")?;
-    let mut entries = Vec::new();
-
-    for idx in 0..archive.len() {
-        let mut file = archive.by_index(idx)?;
-        if file.is_dir() {
-            continue;
-        }
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents)?;
-        let text = String::from_utf8_lossy(&contents).into_owned();
-        entries.push(ArchiveEntry {
-            path: file.name().to_string(),
-            bytes: contents,
-            text,
-        });
-    }
-
-    Ok(entries)
-}
-
 fn run_static_analysis(
     entries: &[ArchiveEntry],
     signatures: &[SignatureDefinition],
@@ -436,8 +407,10 @@ fn run_static_analysis(
     ];
 
     for entry in entries {
+        let entry_text = entry.text.as_deref().unwrap_or("");
+
         for (id, title, category, severity, regex, rationale) in &patterns {
-            if let Some(found) = regex.find(&entry.text) {
+            if let Some(found) = regex.find(entry_text) {
                 matched_pattern_ids.push((*id).to_string());
                 matches.push(Indicator {
                     source: "pattern".to_string(),
@@ -446,7 +419,7 @@ fn run_static_analysis(
                     category: (*category).to_string(),
                     severity: (*severity).to_string(),
                     file_path: Some(entry.path.clone()),
-                    evidence: snippet(&entry.text, found.start(), found.end()),
+                    evidence: snippet(entry_text, found.start(), found.end()),
                     rationale: (*rationale).to_string(),
                 });
             }
@@ -454,13 +427,12 @@ fn run_static_analysis(
 
         for signature in signatures {
             let hit = match signature.kind.as_str() {
-                "token" => entry
-                    .text
+                "token" => entry_text
                     .find(&signature.value)
                     .map(|offset| (offset, offset + signature.value.len())),
                 "regex" => Regex::new(&signature.value)
                     .ok()
-                    .and_then(|re| re.find(&entry.text).map(|m| (m.start(), m.end()))),
+                    .and_then(|re| re.find(entry_text).map(|m| (m.start(), m.end()))),
                 _ => None,
             };
 
@@ -473,7 +445,7 @@ fn run_static_analysis(
                     category: "signature".to_string(),
                     severity: signature.severity.clone(),
                     file_path: Some(entry.path.clone()),
-                    evidence: snippet(&entry.text, start, end),
+                    evidence: snippet(entry_text, start, end),
                     rationale: signature.description.clone(),
                 });
             }
