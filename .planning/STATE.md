@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 6 of 6 (Regression Fixtures)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-03-02 - Completed 06-regression-fixtures-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-03-02 - Completed 06-regression-fixtures-02-PLAN.md
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 9.4 min
+- Total plans completed: 15
+- Average duration: 9.5 min
 
 **By Phase:**
 
@@ -31,7 +31,7 @@ Progress: [█████████░] 93%
 | 03-capability-detectors | 3 | 30 min | 10.0 min |
 | 04-scoring-behavior-prediction | 3 | 31 min | 10.3 min |
 | 05-ui-verdict-rendering | 1 | 4 min | 4.0 min |
-| 06-regression-fixtures | 1 | 11 min | 11.0 min |
+| 06-regression-fixtures | 2 | 21 min | 10.5 min |
 
 ## Accumulated Context
 
@@ -77,11 +77,12 @@ Progress: [█████████░] 93%
 | 06-regression-fixtures-01 | Re-homed scan pipeline types/helpers into `src/lib.rs` with exported `run_scan(state, request, scan_id_override)`. | Enables deterministic regression tests to run the real scan pipeline without HTTP startup overhead. |
 | 06-regression-fixtures-01 | Kept API response semantics by mapping known library scan errors back to existing 400/404 handler behavior. | Preserves established `/scan` error JSON/status behavior while centralizing scan execution in library code. |
 | 06-regression-fixtures-01 | Added `tempfile` strictly under `[dev-dependencies]` and pinned version `3.26.0`. | Supports temp-dir based regression fixtures without changing runtime dependency surface. |
+| 06-regression-fixtures-02 | Committed deterministic compiled fixture artifacts (`all-capabilities.jar` + `.sha256`) and documented safe regeneration flow. | Keeps regression tests portable and repeatable without requiring Java toolchains at test runtime. |
+| 06-regression-fixtures-02 | Wrote direct `run_scan(...)` integration regression tests with fixed IDs and tempfile-backed state, asserting stable indicator IDs/prefixes and score bounds. | Locks TEST-01/02/03 against ordering/text drift while preserving real pipeline behavior coverage without HTTP. |
 
 ### Pending Todos
 
 - Harden `scripts/demo_run.sh` auto-start behavior for first-run compile latency (or prebuild binary) to avoid startup timeout in verification flows.
-- Decide whether to commit deterministic precompiled `.class` fixture bytes as fallback for environments without local JDK tooling.
 
 ### Blockers/Concerns
 
@@ -89,9 +90,10 @@ Progress: [█████████░] 93%
 - Demo fixture now compiles `DemoMod.class` when JDK tools are present, but fallback environments without `javac` still produce source-only jars.
 - Java fixture compilation emits deprecation warnings from JDK tooling; non-blocking for scan behavior.
 - Local verification environments may have occupied bind ports (`127.0.0.1:18000/18001`); prefer explicit `JARSPECT_BIND` or reuse active local instance for UI/browser checks.
+- Regression tests currently accept both legacy `YARA-*` and current `YARA-DEMO-*` IDs due historical formatting drift in example expectations.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 06-regression-fixtures-01-PLAN.md
-Resume file: .planning/phases/06-regression-fixtures/06-regression-fixtures-02-PLAN.md
+Stopped at: Completed 06-regression-fixtures-02-PLAN.md
+Resume file: None - roadmap execution complete
