@@ -20,4 +20,10 @@ public final class DemoMod {
         );
         return remote + " | " + commandLike + " | " + encoded;
     }
+
+    // This method is intentionally never invoked.
+    // It exists only to emit a deterministic new String(new byte[]{...}) bytecode pattern.
+    private static String reconstructedStringFixture() {
+        return new String(new byte[] { 72, 101, 108, 108, 111 });
+    }
 }
