@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 4 of 6 (Scoring + Behavior Prediction)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-02 - Completed 04-scoring-behavior-prediction-01-PLAN.md
+Last activity: 2026-03-02 - Completed 04-scoring-behavior-prediction-02-PLAN.md
 
-Progress: [███████░░░] 67%
+Progress: [███████░░░] 73%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 9.8 min
+- Total plans completed: 11
+- Average duration: 10.0 min
 
 **By Phase:**
 
@@ -29,7 +29,7 @@ Progress: [███████░░░] 67%
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
 | 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
 | 03-capability-detectors | 3 | 30 min | 10.0 min |
-| 04-scoring-behavior-prediction | 1 | 12 min | 12.0 min |
+| 04-scoring-behavior-prediction | 2 | 24 min | 12.0 min |
 
 ## Accumulated Context
 
@@ -63,6 +63,9 @@ Progress: [███████░░░] 67%
 | 04-scoring-behavior-prediction-01 | Normalized detector IDs and freeform categories into canonical scoring buckets, including `obfuscation -> dynamic_loading`. | Enables source-agnostic dedup and stable scoring across detector/pattern/signature evidence. |
 | 04-scoring-behavior-prediction-01 | Applied integer post-cap category allocation and reused post-cap points in `Top contributors` lines. | Keeps explanation math exactly aligned with score computation and deterministic under ties/caps. |
 | 04-scoring-behavior-prediction-01 | Capped reputation adjustment at +19 and kept CLEAN gated on zero deduped static indicators plus zero reputation points. | Prevents reputation-only escalation to HIGH/CRITICAL while preserving explicit CLEAN semantics. |
+| 04-scoring-behavior-prediction-02 | Normalized behavior URLs with `url::Url` into `scheme://host[:port]/path`, ignoring unparsable values. | Keeps derived network observables deterministic and deduplicable for BEHV-01 outputs. |
+| 04-scoring-behavior-prediction-02 | Pinned prediction confidence constants to `0.9`/`0.8`/`0.6` and empty-observable confidence to exact `0.0`. | Makes BEHV-02 behavior explainable and testable with exact-value assertions. |
+| 04-scoring-behavior-prediction-02 | Registered `mod behavior;` in crate root during execution. | Ensures `src/behavior.rs` unit tests compile and run before full `/scan` wiring in Plan 04-03. |
 
 ### Pending Todos
 
@@ -75,9 +78,10 @@ Progress: [███████░░░] 67%
 - Demo fixture now compiles `DemoMod.class` when JDK tools are present, but fallback environments without `javac` still produce source-only jars.
 - Java fixture compilation emits deprecation warnings from JDK tooling; non-blocking for scan behavior.
 - `src/scoring.rs` is implemented and tested but not yet wired into `build_verdict`; integration is pending Plan 04-03.
+- `src/behavior.rs` is implemented and tested but behavior output wiring in `/scan` is pending Plan 04-03.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 04-scoring-behavior-prediction-01-PLAN.md
-Resume file: .planning/phases/04-scoring-behavior-prediction/04-scoring-behavior-prediction-02-PLAN.md
+Stopped at: Completed 04-scoring-behavior-prediction-02-PLAN.md
+Resume file: .planning/phases/04-scoring-behavior-prediction/04-scoring-behavior-prediction-03-PLAN.md
