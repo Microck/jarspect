@@ -177,10 +177,10 @@ function renderResult(scanResponse) {
   const verdict = result.verdict || {};
   const indicators = verdict.indicators || [];
 
-  const tier = verdict.risk_tier || "UNKNOWN";
+  const tier = normalizeTier(verdict.risk_tier);
   const score = verdict.risk_score ?? "?";
 
-  riskLineEl.textContent = `${tier} risk \u00B7 ${score}/100`;
+  riskLineEl.textContent = formatTierHeadline(tier, score);
   scanIdEl.textContent = scanResponse.scan_id || "n/a";
   summaryEl.textContent = verdict.summary || "No verdict summary returned.";
   explanationEl.textContent = verdict.explanation || "No explanation returned.";
@@ -202,6 +202,11 @@ function renderResult(scanResponse) {
       li.style.animationDelay = `${index * 60}ms`;
 
       const sev = normalizeSeverity(indicator.severity);
+      const sevLabel = formatSeverityLabel(indicator.severity);
+      const rawSeverity = String(indicator.severity ?? "").trim();
+      const severityTitle = rawSeverity
+        ? ` title="Raw severity: ${escapeHtml(rawSeverity)}"`
+        : "";
 
       const rationaleHtml = indicator.rationale
         ? `<p class="indicator-rationale">${escapeHtml(indicator.rationale)}</p>`
@@ -211,7 +216,7 @@ function renderResult(scanResponse) {
         <div class="indicator-head">
           <span class="indicator-id">${escapeHtml(indicator.id || "")}</span>
           <span class="indicator-source">${escapeHtml(indicator.source || "")}</span>
-          <span class="severity-badge" data-sev="${sev}">${escapeHtml(indicator.severity || "")}</span>
+          <span class="severity-badge" data-sev="${sev}"${severityTitle}>${escapeHtml(sevLabel)}</span>
         </div>
         <p class="indicator-title">${escapeHtml(indicator.title || "")}</p>
         <p class="indicator-evidence">${escapeHtml(indicator.evidence || "")}</p>
