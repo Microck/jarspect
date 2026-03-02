@@ -6,6 +6,7 @@ pub mod capability_dynamic_load;
 pub mod capability_exec;
 pub mod capability_fs_modify;
 pub mod capability_network;
+pub mod capability_persistence;
 pub mod index;
 pub mod spec;
 
@@ -34,6 +35,7 @@ pub fn run_capability_detectors(
     findings.extend(capability_network::detect(&index));
     findings.extend(capability_dynamic_load::detect(&index));
     findings.extend(capability_fs_modify::detect(&index));
+    findings.extend(capability_persistence::detect(&index));
     dedup_findings(findings)
 }
 
