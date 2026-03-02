@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::collections::BTreeSet;
 
 pub const COMMAND_TOKENS: &[&str] = &["powershell", "cmd.exe", "/bin/sh", "curl", "wget"];
 
@@ -25,6 +26,23 @@ pub fn contains_any_token(haystack: &str, tokens: &[&str]) -> bool {
     tokens
         .iter()
         .any(|token| normalized_haystack.contains(&token.to_ascii_lowercase()))
+}
+
+pub fn matching_token_strings<'a>(
+    strings: impl Iterator<Item = &'a str>,
+    tokens: &[&str],
+) -> Vec<String> {
+    let mut normalized_seen = BTreeSet::new();
+    let mut matches = Vec::new();
+    for value in strings {
+        if contains_any_token(value, tokens) && normalized_seen.insert(value.to_ascii_lowercase()) {
+            matches.push(value.to_string());
+        }
+    }
+
+    matches.sort();
+    matches.dedup();
+    matches
 }
 
 #[cfg(test)]
@@ -59,5 +77,16 @@ mod tests {
             "System.out.println(\"hello\")",
             COMMAND_TOKENS
         ));
+    }
+
+    #[test]
+    fn matching_token_strings_returns_unique_case_insensitive_matches() {
+        let strings = ["mods/evil.jar", "MODS/evil.jar", "../payload", "benign"];
+
+        let matches = matching_token_strings(strings.iter().copied(), &["mods/", "../"]);
+        assert_eq!(
+            matches,
+            vec!["../payload".to_string(), "mods/evil.jar".to_string()]
+        );
     }
 }
