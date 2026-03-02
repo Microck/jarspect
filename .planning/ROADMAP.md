@@ -90,7 +90,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Web UI renders a `CLEAN` scan as `CLEAN` (not an error/empty state) and shows score `0` clearly.
   2. Web UI normalizes and displays severities consistently (e.g., `med` and `medium` do not diverge in presentation).
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] `05-ui-verdict-rendering-01-PLAN.md` — Normalize tier/severity tokens and render canonical labels (CLEAN + med)
 
 ### Phase 6: Regression Fixtures
 **Goal**: The new bytecode-first logic is protected by safe fixtures and end-to-end tests, and the existing demo flow still works.
