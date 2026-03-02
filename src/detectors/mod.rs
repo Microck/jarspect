@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use crate::analysis::{ArchiveEntry, BytecodeEvidence, Location};
 
+pub mod capability_cred_theft;
 pub mod capability_deser;
 pub mod capability_dynamic_load;
 pub mod capability_exec;
 pub mod capability_fs_modify;
+pub mod capability_native;
 pub mod capability_network;
 pub mod capability_persistence;
 pub mod index;
@@ -28,8 +30,6 @@ pub fn run_capability_detectors(
     evidence: &BytecodeEvidence,
     entries: &[ArchiveEntry],
 ) -> Vec<DetectorFinding> {
-    let _ = entries;
-
     let index = index::EvidenceIndex::new(evidence);
     let mut findings = Vec::new();
     findings.extend(capability_exec::detect(&index));
@@ -38,6 +38,8 @@ pub fn run_capability_detectors(
     findings.extend(capability_fs_modify::detect(&index));
     findings.extend(capability_persistence::detect(&index));
     findings.extend(capability_deser::detect(&index));
+    findings.extend(capability_native::detect(&index, entries));
+    findings.extend(capability_cred_theft::detect(&index));
     dedup_findings(findings)
 }
 

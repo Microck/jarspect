@@ -2,6 +2,36 @@ use regex::Regex;
 use std::collections::BTreeSet;
 
 pub const COMMAND_TOKENS: &[&str] = &["powershell", "cmd.exe", "/bin/sh", "curl", "wget"];
+pub const NETWORK_PRIMITIVE_MATCHERS: &[(&str, &str, &str)] = &[
+    ("java/net/URL", "<init>", "java/net/URL.<init>"),
+    (
+        "java/net/URL",
+        "openConnection",
+        "java/net/URL.openConnection",
+    ),
+    (
+        "java/net/URLConnection",
+        "connect",
+        "java/net/URLConnection.connect",
+    ),
+    ("java/net/Socket", "<init>", "java/net/Socket.<init>"),
+    ("java/net/Socket", "connect", "java/net/Socket.connect"),
+    (
+        "java/net/DatagramSocket",
+        "send",
+        "java/net/DatagramSocket.send",
+    ),
+    (
+        "java/net/http/HttpClient",
+        "send",
+        "java/net/http/HttpClient.send",
+    ),
+    (
+        "java/net/http/HttpClient",
+        "sendAsync",
+        "java/net/http/HttpClient.sendAsync",
+    ),
+];
 
 pub fn extract_urls<'a>(strings: impl Iterator<Item = &'a str>) -> Vec<String> {
     let regex = Regex::new(
