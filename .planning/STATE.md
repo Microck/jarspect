@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Upload a `.jar`, get a risk verdict with explainable indicators before you install.
-**Current focus:** Phase 4 - Scoring + Behavior Prediction
+**Current focus:** Phase 5 - UI Verdict Rendering
 
 ## Current Position
 
 Phase: 4 of 6 (Scoring + Behavior Prediction)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-02 - Completed 04-scoring-behavior-prediction-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-03-02 - Completed 04-scoring-behavior-prediction-03-PLAN.md
 
-Progress: [███████░░░] 73%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 10.0 min
+- Total plans completed: 12
+- Average duration: 9.8 min
 
 **By Phase:**
 
@@ -29,7 +29,7 @@ Progress: [███████░░░] 73%
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
 | 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
 | 03-capability-detectors | 3 | 30 min | 10.0 min |
-| 04-scoring-behavior-prediction | 2 | 24 min | 12.0 min |
+| 04-scoring-behavior-prediction | 3 | 31 min | 10.3 min |
 
 ## Accumulated Context
 
@@ -66,6 +66,9 @@ Progress: [███████░░░] 73%
 | 04-scoring-behavior-prediction-02 | Normalized behavior URLs with `url::Url` into `scheme://host[:port]/path`, ignoring unparsable values. | Keeps derived network observables deterministic and deduplicable for BEHV-01 outputs. |
 | 04-scoring-behavior-prediction-02 | Pinned prediction confidence constants to `0.9`/`0.8`/`0.6` and empty-observable confidence to exact `0.0`. | Makes BEHV-02 behavior explainable and testable with exact-value assertions. |
 | 04-scoring-behavior-prediction-02 | Registered `mod behavior;` in crate root during execution. | Ensures `src/behavior.rs` unit tests compile and run before full `/scan` wiring in Plan 04-03. |
+| 04-scoring-behavior-prediction-03 | Mapped `behavior::derive_behavior(...)` directly into API `BehaviorPrediction` fields and set `behavior.indicators` explicitly empty. | Replaces synthetic placeholder behavior indicators with evidence-derived outputs while keeping behavior non-scoring. |
+| 04-scoring-behavior-prediction-03 | Refactored `build_verdict(...)` to accept only static indicators plus optional reputation and delegate scoring to `score_static_indicators(...)`. | Structurally prevents behavior->score feedback and aligns verdict math/explanations with the shared scoring engine. |
+| 04-scoring-behavior-prediction-03 | Added serde-default additive fields `predicted_commands` and `predictions` to `BehaviorPrediction`. | Preserves backward-compatible scan JSON deserialization while exposing BEHV-02 structured prediction data. |
 
 ### Pending Todos
 
@@ -77,11 +80,9 @@ Progress: [███████░░░] 73%
 - `scripts/demo_run.sh` auto-start path remains sensitive to first-run compile timing; prebuilding with `cargo build` avoids timeout in verification flows.
 - Demo fixture now compiles `DemoMod.class` when JDK tools are present, but fallback environments without `javac` still produce source-only jars.
 - Java fixture compilation emits deprecation warnings from JDK tooling; non-blocking for scan behavior.
-- `src/scoring.rs` is implemented and tested but not yet wired into `build_verdict`; integration is pending Plan 04-03.
-- `src/behavior.rs` is implemented and tested but behavior output wiring in `/scan` is pending Plan 04-03.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 04-scoring-behavior-prediction-02-PLAN.md
-Resume file: .planning/phases/04-scoring-behavior-prediction/04-scoring-behavior-prediction-03-PLAN.md
+Stopped at: Completed 04-scoring-behavior-prediction-03-PLAN.md
+Resume file: .planning/phases/05-ui-verdict-rendering/05-ui-verdict-rendering-01-PLAN.md
