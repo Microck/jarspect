@@ -1,9 +1,11 @@
 use anyhow::{anyhow, Result};
+use cafebabe::attributes::AttributeData;
+use cafebabe::bytecode::Opcode;
 use cafebabe::{parse_class_with_options, ParseOptions};
 
 use crate::ArchiveEntry;
 
-use super::{BytecodeEvidence, BytecodeEvidenceItem, Location};
+use super::{BytecodeEvidence, BytecodeEvidenceItem, Location, LocationMethod};
 
 pub fn extract_bytecode_evidence(entries: &[ArchiveEntry]) -> BytecodeEvidence {
     let mut items = Vec::new();
@@ -57,7 +59,72 @@ fn extract_entry_evidence(entry: &ArchiveEntry) -> Result<Vec<BytecodeEvidenceIt
         });
     }
 
+    items.extend(extract_method_invoke_evidence(
+        &class,
+        entry.path.as_str(),
+        class_name.as_str(),
+    ));
+
     Ok(items)
+}
+
+fn extract_method_invoke_evidence(
+    class: &cafebabe::ClassFile<'_>,
+    entry_path: &str,
+    class_name: &str,
+) -> Vec<BytecodeEvidenceItem> {
+    let mut items = Vec::new();
+
+    for method in &class.methods {
+        let method_location = LocationMethod {
+            name: method.name.to_string(),
+            descriptor: method.descriptor.to_string(),
+        };
+
+        for attribute in &method.attributes {
+            let AttributeData::Code(code_data) = &attribute.data else {
+                continue;
+            };
+
+            let Some(bytecode) = &code_data.bytecode else {
+                continue;
+            };
+
+            for (pc, opcode) in &bytecode.opcodes {
+                let location = Location {
+                    entry_path: entry_path.to_string(),
+                    class_name: class_name.to_string(),
+                    method: Some(method_location.clone()),
+                    pc: u32::try_from(*pc).ok(),
+                };
+
+                match opcode {
+                    Opcode::Invokevirtual(member)
+                    | Opcode::Invokestatic(member)
+                    | Opcode::Invokespecial(member)
+                    | Opcode::Invokeinterface(member, _) => {
+                        items.push(BytecodeEvidenceItem::InvokeResolved {
+                            owner: member.class_name.to_string(),
+                            name: member.name_and_type.name.to_string(),
+                            descriptor: member.name_and_type.descriptor.to_string(),
+                            location,
+                        });
+                    }
+                    Opcode::Invokedynamic(dynamic) => {
+                        items.push(BytecodeEvidenceItem::InvokeDynamic {
+                            name: dynamic.name_and_type.name.to_string(),
+                            descriptor: dynamic.name_and_type.descriptor.to_string(),
+                            bootstrap_attr_index: dynamic.attr_index,
+                            location,
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    items
 }
 
 fn parse_constant_pool_strings(raw: &[u8]) -> Result<(Vec<String>, Vec<String>)> {
