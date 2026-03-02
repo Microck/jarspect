@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Upload a `.jar`, get a risk verdict with explainable indicators before you install.
-**Current focus:** Phase 3 - Capability Detectors
+**Current focus:** Phase 4 - Scoring + Behavior Prediction
 
 ## Current Position
 
 Phase: 3 of 6 (Capability Detectors)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-02 - Completed 03-capability-detectors-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-03-02 - Completed 03-capability-detectors-03-PLAN.md
 
-Progress: [█████░░░░░] 53%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 9.6 min
 
 **By Phase:**
@@ -28,7 +28,7 @@ Progress: [█████░░░░░] 53%
 |-------|-------|-------|----------|
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
 | 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
-| 03-capability-detectors | 2 | 21 min | 10.5 min |
+| 03-capability-detectors | 3 | 30 min | 10.0 min |
 
 ## Accumulated Context
 
@@ -56,6 +56,9 @@ Progress: [█████░░░░░] 53%
 | 03-capability-detectors-02 | Kept DETC-04 escalation conservative: zip/jar primitives baseline at `med`, generic writes remain `low`, and escalation to `high` requires same-class traversal or `.jar` markers. | Prevents common write primitives from over-escalating while still highlighting suspicious archive rewrite behavior. |
 | 03-capability-detectors-02 | Implemented DETC-05 as token-first detection with same-class exec/write correlators and explicit high gate requiring concrete path/key markers. | Ensures persistence tokens remain reportable without inflating severity unless corroborated by stronger behavior signals. |
 | 03-capability-detectors-02 | Reused case-insensitive token extraction helper to keep enrichment output deterministic and deduplicated across detector modules. | Preserves explainable, machine-stable extracted evidence for downstream scoring and behavior prediction. |
+| 03-capability-detectors-03 | Classified DETC-06 as `category=vulnerability` with fixed `med` severity. | Keeps unsafe deserialization signal as vulnerability-risk without overstating exploitability from static evidence alone. |
+| 03-capability-detectors-03 | Escalated DETC-07 to `high` only with native-load invoke plus embedded native entry or suspicious path markers. | Maintains conservative defaults while still surfacing stronger JNI/native loading risk when corroborated by archive/string evidence. |
+| 03-capability-detectors-03 | Implemented DETC-08 with strict same-class correlation gates (`token-only=low`, `token+read=med`, `token+read+network=high`). | Preserves observability for token markers while reducing false positives from standalone strings or unrelated network usage. |
 
 ### Pending Todos
 
@@ -71,5 +74,5 @@ Progress: [█████░░░░░] 53%
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 03-capability-detectors-02-PLAN.md
-Resume file: .planning/phases/03-capability-detectors/03-capability-detectors-03-PLAN.md
+Stopped at: Completed 03-capability-detectors-03-PLAN.md
+Resume file: .planning/phases/04-scoring-behavior-prediction/04-scoring-behavior-prediction-01-PLAN.md
