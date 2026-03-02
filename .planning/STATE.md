@@ -9,18 +9,18 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 ## Current Position
 
-Phase: 2 of 6 (Archive + YARA Fidelity)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-03-02 - Completed 02-archive-yara-fidelity-03-PLAN.md
+Phase: 3 of 6 (Capability Detectors)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-03-02 - Completed 03-capability-detectors-01-PLAN.md
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 9.3 min
+- Total plans completed: 7
+- Average duration: 9.9 min
 
 **By Phase:**
 
@@ -28,6 +28,7 @@ Progress: [████░░░░░░] 40%
 |-------|-------|-------|----------|
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
 | 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
+| 03-capability-detectors | 1 | 13 min | 13.0 min |
 
 ## Accumulated Context
 
@@ -49,20 +50,23 @@ Progress: [████░░░░░░] 40%
 | 02-archive-yara-fidelity-03 | Grouped metadata checks by jar layer using the last `!/` boundary in archive entry paths. | Keeps Fabric/Forge/Spigot integrity checks scoped to the owning jar, including nested jar layers. |
 | 02-archive-yara-fidelity-03 | Reserved `high` metadata severity for manifest instrumentation keys and kept malformed/inconsistent metadata findings in `low|med`. | Preserves conservative signal quality while still flagging clear Java agent risk attributes. |
 | 02-archive-yara-fidelity-03 | Converted metadata findings directly into `result.static.matches[]` indicators with `source=metadata` and full nested `file_path` provenance. | Makes ARCH-02 findings additive, traceable, and immediately consumable by existing scoring/behavior stages. |
+| 03-capability-detectors-01 | Consolidated detector output by capability ID while merging all callsite locations and extracted evidence vectors. | Keeps capability signals readable and explainable without emitting one indicator per invoke instruction. |
+| 03-capability-detectors-01 | Applied class-scoped string correlation gates for DETC-01/02/03 severity escalation. | Reduces false positives by requiring related string context in the same class before escalation. |
+| 03-capability-detectors-01 | Extended `Indicator` with optional structured detector fields (`evidence_locations`, `extracted_urls`, `extracted_commands`, `extracted_file_paths`). | Preserves backward compatibility while enabling machine-readable detector provenance. |
 
 ### Pending Todos
 
 - Harden `scripts/demo_run.sh` auto-start behavior for first-run compile latency (or prebuild binary) to avoid startup timeout in verification flows.
-- Decide whether to reintroduce deterministic `.class` fixture bytes in `demo/build_sample.sh` so bytecode evidence demos stay consistent without local JDK tooling.
+- Decide whether to commit deterministic precompiled `.class` fixture bytes as fallback for environments without local JDK tooling.
 
 ### Blockers/Concerns
 
-- `scripts/demo_run.sh` auto-start path remains sensitive to first-run compile timing; pre-starting the API with `JARSPECT_API_URL` still works reliably.
-- Nested-jar demo attribution is now deterministic across build modes, but `.class` bytecode-specific demo evidence is still absent without a committed compiled fixture.
-- Metadata demo scans may raise `META-FABRIC-ENTRYPOINT-MISSING` in zip-fallback builds when `DemoMod.class` is not present; this is expected until deterministic compiled fixtures are committed.
+- `scripts/demo_run.sh` auto-start path remains sensitive to first-run compile timing; prebuilding with `cargo build` avoids timeout in verification flows.
+- Demo fixture now compiles `DemoMod.class` when JDK tools are present, but fallback environments without `javac` still produce source-only jars.
+- Java fixture compilation emits deprecation warnings from JDK tooling; non-blocking for scan behavior.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 02-archive-yara-fidelity-03-PLAN.md
-Resume file: .planning/phases/03-capability-detectors/03-capability-detectors-01-PLAN.md
+Stopped at: Completed 03-capability-detectors-01-PLAN.md
+Resume file: .planning/phases/03-capability-detectors/03-capability-detectors-02-PLAN.md
