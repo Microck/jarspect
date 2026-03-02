@@ -10,12 +10,12 @@ This milestone makes scan results reliable by switching from lossy string scanni
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Bytecode Evidence Core** - Extract bytecode facts (strings + invokes) into a stable, additive evidence schema.
-- [ ] **Phase 2: Archive + YARA Fidelity** - Recursively scan jar-in-jar, parse metadata, and run YARA per-entry with correct severities.
-- [ ] **Phase 3: Capability Detectors** - Detect real capability patterns from compiled bytecode with traceable evidence.
-- [ ] **Phase 4: Scoring + Behavior Prediction** - Produce stable tiers (including CLEAN) with explainable synergy and evidence-derived predictions.
-- [ ] **Phase 5: UI Verdict Rendering** - Display tiers and severities consistently in the web UI.
-- [ ] **Phase 6: Regression Fixtures** - Ship safe fixtures + end-to-end tests that lock in the new logic and preserve demo behavior.
+- [x] **Phase 1: Bytecode Evidence Core** - Extract bytecode facts (strings + invokes) into a stable, additive evidence schema.
+- [x] **Phase 2: Archive + YARA Fidelity** - Recursively scan jar-in-jar, parse metadata, and run YARA per-entry with correct severities.
+- [x] **Phase 3: Capability Detectors** - Detect real capability patterns from compiled bytecode with traceable evidence.
+- [x] **Phase 4: Scoring + Behavior Prediction** - Produce stable tiers (including CLEAN) with explainable synergy and evidence-derived predictions.
+- [x] **Phase 5: UI Verdict Rendering** - Display tiers and severities consistently in the web UI.
+- [x] **Phase 6: Regression Fixtures** - Ship safe fixtures + end-to-end tests that lock in the new logic and preserve demo behavior.
 
 ## Phase Details
 
@@ -31,9 +31,9 @@ This milestone makes scan results reliable by switching from lossy string scanni
 **Plans**: 3 plans
 
 Plans:
-- [ ] `01-bytecode-evidence-core-01-PLAN.md` — Add bytecode evidence schema + constant-pool string extraction wired into `/scan`
-- [ ] `01-bytecode-evidence-core-02-PLAN.md` — Emit resolved invoke* evidence with per-method pc offsets
-- [ ] `01-bytecode-evidence-core-03-PLAN.md` — Reconstruct `new String(new byte[]{...})` strings and verify via demo fixture
+- [x] `01-bytecode-evidence-core-01-PLAN.md` — Add bytecode evidence schema + constant-pool string extraction wired into `/scan`
+- [x] `01-bytecode-evidence-core-02-PLAN.md` — Emit resolved invoke* evidence with per-method pc offsets
+- [x] `01-bytecode-evidence-core-03-PLAN.md` — Reconstruct `new String(new byte[]{...})` strings and verify via demo fixture
 
 ### Phase 2: Archive + YARA Fidelity
 **Goal**: The scan pipeline accurately understands archive structure (including nested jars) and produces entry-scoped YARA evidence with trustworthy severities.
@@ -47,9 +47,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] `02-archive-yara-fidelity-01-PLAN.md` — Add recursive jar-in-jar traversal with stable nested paths + safety limits (ARCH-01)
-- [ ] `02-archive-yara-fidelity-02-PLAN.md` — Run YARA per inflated entry with severity-from-metadata and demo/prod rulepack separation (YARA-01/02/03)
-- [ ] `02-archive-yara-fidelity-03-PLAN.md` — Parse mod metadata + manifest signals and emit suspicious/inconsistency findings (ARCH-02)
+- [x] `02-archive-yara-fidelity-01-PLAN.md` — Add recursive jar-in-jar traversal with stable nested paths + safety limits (ARCH-01)
+- [x] `02-archive-yara-fidelity-02-PLAN.md` — Run YARA per inflated entry with severity-from-metadata and demo/prod rulepack separation (YARA-01/02/03)
+- [x] `02-archive-yara-fidelity-03-PLAN.md` — Parse mod metadata + manifest signals and emit suspicious/inconsistency findings (ARCH-02)
 
 ### Phase 3: Capability Detectors
 **Goal**: The scan reliably detects real-world capability patterns from compiled bytecode with concrete evidence, not synthetic placeholders.
@@ -63,9 +63,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] `03-capability-detectors-01-PLAN.md` — Add detector framework + implement DETC-01/02/03 (exec/network/dynamic load) with FP controls and callsite evidence
-- [ ] `03-capability-detectors-02-PLAN.md` — Implement DETC-04/05 (fs/jar modification + persistence) with correlation-based severity gates
-- [ ] `03-capability-detectors-03-PLAN.md` — Implement DETC-06/07/08 (unsafe deserialization + native loading + credential theft) with conservative severity and evidence correlation
+- [x] `03-capability-detectors-01-PLAN.md` — Add detector framework + implement DETC-01/02/03 (exec/network/dynamic load) with FP controls and callsite evidence
+- [x] `03-capability-detectors-02-PLAN.md` — Implement DETC-04/05 (fs/jar modification + persistence) with correlation-based severity gates
+- [x] `03-capability-detectors-03-PLAN.md` — Implement DETC-06/07/08 (unsafe deserialization + native loading + credential theft) with conservative severity and evidence correlation
 
 ### Phase 4: Scoring + Behavior Prediction
 **Goal**: The verdict (tier + score) is stable, explainable, and driven by capability evidence, including evidence-derived behavior predictions.
@@ -79,9 +79,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] `04-scoring-behavior-prediction-01-PLAN.md` — Stable scoring pipeline (dedup + diminishing returns + synergy) with CLEAN tier
-- [ ] `04-scoring-behavior-prediction-02-PLAN.md` — Evidence-derived behavior prediction with confidence + rationale (no placeholders)
-- [ ] `04-scoring-behavior-prediction-03-PLAN.md` — Wire scoring + behavior into scan verdict; prevent scoring feedback
+- [x] `04-scoring-behavior-prediction-01-PLAN.md` — Stable scoring pipeline (dedup + diminishing returns + synergy) with CLEAN tier
+- [x] `04-scoring-behavior-prediction-02-PLAN.md` — Evidence-derived behavior prediction with confidence + rationale (no placeholders)
+- [x] `04-scoring-behavior-prediction-03-PLAN.md` — Wire scoring + behavior into scan verdict; prevent scoring feedback
 
 ### Phase 5: UI Verdict Rendering
 **Goal**: The UI reflects the new tiers/severities consistently, including `CLEAN`, without confusing severity labels.
@@ -93,7 +93,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] `05-ui-verdict-rendering-01-PLAN.md` — Normalize tier/severity tokens and render canonical labels (CLEAN + med)
+- [x] `05-ui-verdict-rendering-01-PLAN.md` — Normalize tier/severity tokens and render canonical labels (CLEAN + med)
 
 ### Phase 6: Regression Fixtures
 **Goal**: The new bytecode-first logic is protected by safe fixtures and end-to-end tests, and the existing demo flow still works.
@@ -106,8 +106,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] `06-regression-fixtures-01-PLAN.md` — Expose scan pipeline entrypoint for tests (no HTTP) + add tempfile + lock plan list
-- [ ] `06-regression-fixtures-02-PLAN.md` — Add committed bytecode fixtures + E2E regression tests for TEST-01/02/03 (incl demo jar)
+- [x] `06-regression-fixtures-01-PLAN.md` — Expose scan pipeline entrypoint for tests (no HTTP) + add tempfile + lock plan list
+- [x] `06-regression-fixtures-02-PLAN.md` — Add committed bytecode fixtures + E2E regression tests for TEST-01/02/03 (incl demo jar)
 
 ## Progress
 
@@ -116,9 +116,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bytecode Evidence Core | 0/TBD | Not started | - |
-| 2. Archive + YARA Fidelity | 0/TBD | Not started | - |
-| 3. Capability Detectors | 0/TBD | Not started | - |
-| 4. Scoring + Behavior Prediction | 0/TBD | Not started | - |
-| 5. UI Verdict Rendering | 0/TBD | Not started | - |
-| 6. Regression Fixtures | 0/2 | Not started | - |
+| 1. Bytecode Evidence Core | 3/3 | Complete | 2026-03-02 |
+| 2. Archive + YARA Fidelity | 3/3 | Complete | 2026-03-02 |
+| 3. Capability Detectors | 3/3 | Complete | 2026-03-02 |
+| 4. Scoring + Behavior Prediction | 3/3 | Complete | 2026-03-02 |
+| 5. UI Verdict Rendering | 1/1 | Complete | 2026-03-02 |
+| 6. Regression Fixtures | 2/2 | Complete | 2026-03-02 |
