@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 3 of 6 (Capability Detectors)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-02 - Completed 03-capability-detectors-01-PLAN.md
+Last activity: 2026-03-02 - Completed 03-capability-detectors-02-PLAN.md
 
-Progress: [█████░░░░░] 47%
+Progress: [█████░░░░░] 53%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 9.9 min
+- Total plans completed: 8
+- Average duration: 9.6 min
 
 **By Phase:**
 
@@ -28,7 +28,7 @@ Progress: [█████░░░░░] 47%
 |-------|-------|-------|----------|
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
 | 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
-| 03-capability-detectors | 1 | 13 min | 13.0 min |
+| 03-capability-detectors | 2 | 21 min | 10.5 min |
 
 ## Accumulated Context
 
@@ -53,6 +53,9 @@ Progress: [█████░░░░░] 47%
 | 03-capability-detectors-01 | Consolidated detector output by capability ID while merging all callsite locations and extracted evidence vectors. | Keeps capability signals readable and explainable without emitting one indicator per invoke instruction. |
 | 03-capability-detectors-01 | Applied class-scoped string correlation gates for DETC-01/02/03 severity escalation. | Reduces false positives by requiring related string context in the same class before escalation. |
 | 03-capability-detectors-01 | Extended `Indicator` with optional structured detector fields (`evidence_locations`, `extracted_urls`, `extracted_commands`, `extracted_file_paths`). | Preserves backward compatibility while enabling machine-readable detector provenance. |
+| 03-capability-detectors-02 | Kept DETC-04 escalation conservative: zip/jar primitives baseline at `med`, generic writes remain `low`, and escalation to `high` requires same-class traversal or `.jar` markers. | Prevents common write primitives from over-escalating while still highlighting suspicious archive rewrite behavior. |
+| 03-capability-detectors-02 | Implemented DETC-05 as token-first detection with same-class exec/write correlators and explicit high gate requiring concrete path/key markers. | Ensures persistence tokens remain reportable without inflating severity unless corroborated by stronger behavior signals. |
+| 03-capability-detectors-02 | Reused case-insensitive token extraction helper to keep enrichment output deterministic and deduplicated across detector modules. | Preserves explainable, machine-stable extracted evidence for downstream scoring and behavior prediction. |
 
 ### Pending Todos
 
@@ -68,5 +71,5 @@ Progress: [█████░░░░░] 47%
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 03-capability-detectors-01-PLAN.md
-Resume file: .planning/phases/03-capability-detectors/03-capability-detectors-02-PLAN.md
+Stopped at: Completed 03-capability-detectors-02-PLAN.md
+Resume file: .planning/phases/03-capability-detectors/03-capability-detectors-03-PLAN.md
