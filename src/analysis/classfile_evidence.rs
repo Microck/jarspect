@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use cafebabe::attributes::AttributeData;
 use cafebabe::bytecode::Opcode;
-use cafebabe::{parse_class_with_options, ParseOptions};
+use cafebabe::{ParseOptions, parse_class_with_options};
 
 use crate::ArchiveEntry;
 
+use super::byte_array_strings::reconstruct_byte_array_strings;
 use super::{BytecodeEvidence, BytecodeEvidenceItem, Location, LocationMethod};
 
 pub fn extract_bytecode_evidence(entries: &[ArchiveEntry]) -> BytecodeEvidence {
@@ -59,7 +60,7 @@ fn extract_entry_evidence(entry: &ArchiveEntry) -> Result<Vec<BytecodeEvidenceIt
         });
     }
 
-    items.extend(extract_method_invoke_evidence(
+    items.extend(extract_method_bytecode_evidence(
         &class,
         entry.path.as_str(),
         class_name.as_str(),
@@ -68,7 +69,7 @@ fn extract_entry_evidence(entry: &ArchiveEntry) -> Result<Vec<BytecodeEvidenceIt
     Ok(items)
 }
 
-fn extract_method_invoke_evidence(
+fn extract_method_bytecode_evidence(
     class: &cafebabe::ClassFile<'_>,
     entry_path: &str,
     class_name: &str,
@@ -89,6 +90,26 @@ fn extract_method_invoke_evidence(
             let Some(bytecode) = &code_data.bytecode else {
                 continue;
             };
+
+            let exception_handler_pcs = code_data
+                .exception_table
+                .iter()
+                .map(|entry| entry.handler_pc)
+                .collect::<Vec<_>>();
+
+            for reconstructed in
+                reconstruct_byte_array_strings(&bytecode.opcodes, &exception_handler_pcs)
+            {
+                items.push(BytecodeEvidenceItem::ReconstructedString {
+                    value: reconstructed.value,
+                    location: Location {
+                        entry_path: entry_path.to_string(),
+                        class_name: class_name.to_string(),
+                        method: Some(method_location.clone()),
+                        pc: reconstructed.pc,
+                    },
+                });
+            }
 
             for (pc, opcode) in &bytecode.opcodes {
                 let location = Location {

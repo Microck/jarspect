@@ -12,6 +12,8 @@ pub enum BytecodeEvidenceItem {
     CpUtf8 { value: String, location: Location },
     #[serde(rename = "cp_string_literal")]
     CpStringLiteral { value: String, location: Location },
+    #[serde(rename = "reconstructed_string")]
+    ReconstructedString { value: String, location: Location },
     #[serde(rename = "invoke_resolved")]
     InvokeResolved {
         owner: String,
@@ -124,6 +126,44 @@ mod tests {
 
         let roundtrip: BytecodeEvidenceItem = serde_json::from_value(expected)
             .expect("failed to deserialize invoke_resolved evidence item");
+        assert_eq!(roundtrip, item);
+    }
+
+    #[test]
+    fn reconstructed_string_json_shape_is_stable() {
+        let item = BytecodeEvidenceItem::ReconstructedString {
+            value: "Hello".to_string(),
+            location: Location {
+                entry_path: "mods/example.jar!/com/example/Agent.class".to_string(),
+                class_name: "com/example/Agent".to_string(),
+                method: Some(LocationMethod {
+                    name: "bootstrap".to_string(),
+                    descriptor: "()V".to_string(),
+                }),
+                pc: Some(32),
+            },
+        };
+
+        let expected = json!({
+            "kind": "reconstructed_string",
+            "value": "Hello",
+            "location": {
+                "entry_path": "mods/example.jar!/com/example/Agent.class",
+                "class_name": "com/example/Agent",
+                "method": {
+                    "name": "bootstrap",
+                    "descriptor": "()V"
+                },
+                "pc": 32
+            }
+        });
+
+        let serialized = serde_json::to_value(&item)
+            .expect("failed to serialize reconstructed_string evidence item");
+        assert_eq!(serialized, expected);
+
+        let roundtrip: BytecodeEvidenceItem = serde_json::from_value(expected)
+            .expect("failed to deserialize reconstructed_string evidence item");
         assert_eq!(roundtrip, item);
     }
 

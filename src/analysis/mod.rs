@@ -1,3 +1,4 @@
+mod byte_array_strings;
 mod classfile_evidence;
 mod evidence;
 
