@@ -87,8 +87,12 @@ struct StaticFindings {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct BehaviorPrediction {
     predicted_network_urls: Vec<String>,
+    #[serde(default)]
+    predicted_commands: Vec<String>,
     predicted_file_writes: Vec<String>,
     predicted_persistence: Vec<String>,
+    #[serde(default)]
+    predictions: Vec<behavior::PredictedBehavior>,
     confidence: f64,
     indicators: Vec<Indicator>,
 }
@@ -332,13 +336,18 @@ async fn scan(
         &state.signatures,
         &state.yara_rulepacks,
     )?;
-    let behavior = infer_behavior(&static_findings.matches);
+    let derived_behavior = behavior::derive_behavior(&static_findings.matches);
+    let behavior = BehaviorPrediction {
+        predicted_network_urls: derived_behavior.predicted_network_urls,
+        predicted_commands: derived_behavior.predicted_commands,
+        predicted_file_writes: derived_behavior.predicted_file_writes,
+        predicted_persistence: derived_behavior.predicted_persistence,
+        predictions: derived_behavior.predictions,
+        confidence: derived_behavior.confidence,
+        indicators: vec![],
+    };
     let reputation = request.author.as_ref().map(score_author);
-    let verdict = build_verdict(
-        &static_findings.matches,
-        &behavior.indicators,
-        reputation.as_ref(),
-    );
+    let verdict = build_verdict(&static_findings.matches, reputation.as_ref());
 
     let result = ScanResult {
         intake,
@@ -576,86 +585,6 @@ fn run_static_analysis(
     })
 }
 
-fn infer_behavior(static_indicators: &[Indicator]) -> BehaviorPrediction {
-    let mut indicators = Vec::new();
-    let mut urls = Vec::new();
-    let mut writes = Vec::new();
-    let mut persistence = Vec::new();
-
-    let has_network = static_indicators
-        .iter()
-        .any(|i| i.id.contains("NET") || i.id.contains("URL"));
-    if has_network {
-        urls.push("https://payload.example.invalid/bootstrap".to_string());
-        indicators.push(Indicator {
-            source: "behavior".to_string(),
-            id: "BEH-NETWORK".to_string(),
-            title: "Predicted outbound network activity".to_string(),
-            category: "network".to_string(),
-            severity: "high".to_string(),
-            file_path: None,
-            evidence:
-                "domains=payload.example.invalid; urls=https://payload.example.invalid/bootstrap"
-                    .to_string(),
-            rationale: "Static URL and signature evidence imply outbound command traffic."
-                .to_string(),
-            evidence_locations: None,
-            extracted_urls: None,
-            extracted_commands: None,
-            extracted_file_paths: None,
-        });
-    }
-
-    let has_exec = static_indicators
-        .iter()
-        .any(|i| i.id.contains("EXEC") || i.id.contains("RUNTIME"));
-    if has_exec {
-        writes.push("mods/cache.bin".to_string());
-        persistence.push("startup task registration (predicted)".to_string());
-        indicators.push(Indicator {
-            source: "behavior".to_string(),
-            id: "BEH-PERSISTENCE".to_string(),
-            title: "Predicted persistence behavior".to_string(),
-            category: "persistence".to_string(),
-            severity: "high".to_string(),
-            file_path: None,
-            evidence: "mechanisms=startup task registration (predicted)".to_string(),
-            rationale: "Execution primitives and obfuscation markers indicate persistence setup."
-                .to_string(),
-            evidence_locations: None,
-            extracted_urls: None,
-            extracted_commands: None,
-            extracted_file_paths: None,
-        });
-    }
-
-    if has_exec || has_network {
-        indicators.push(Indicator {
-            source: "behavior".to_string(),
-            id: "BEH-FS-WRITES".to_string(),
-            title: "Predicted file system writes".to_string(),
-            category: "filesystem".to_string(),
-            severity: "high".to_string(),
-            file_path: None,
-            evidence: "writes=mods/cache.bin".to_string(),
-            rationale: "Observed payload and execution markers imply staged file writes."
-                .to_string(),
-            evidence_locations: None,
-            extracted_urls: None,
-            extracted_commands: None,
-            extracted_file_paths: None,
-        });
-    }
-
-    BehaviorPrediction {
-        predicted_network_urls: urls,
-        predicted_file_writes: writes,
-        predicted_persistence: persistence,
-        confidence: if indicators.is_empty() { 0.35 } else { 0.82 },
-        indicators,
-    }
-}
-
 fn score_author(author: &AuthorMetadata) -> ReputationResult {
     let age = author.account_age_days.unwrap_or(14);
     let prior_mods = author.prior_mod_count.unwrap_or(1);
@@ -700,79 +629,30 @@ fn score_author(author: &AuthorMetadata) -> ReputationResult {
     }
 }
 
-fn build_verdict(
-    static_indicators: &[Indicator],
-    behavior_indicators: &[Indicator],
-    reputation: Option<&ReputationResult>,
-) -> Verdict {
-    let mut all_indicators = Vec::new();
-    all_indicators.extend_from_slice(static_indicators);
-    all_indicators.extend_from_slice(behavior_indicators);
+fn build_verdict(static_indicators: &[Indicator], reputation: Option<&ReputationResult>) -> Verdict {
+    let scored = scoring::score_static_indicators(static_indicators, reputation);
+
+    let mut verdict_indicators = static_indicators.to_vec();
     if let Some(rep) = reputation {
-        all_indicators.extend_from_slice(&rep.indicators);
+        verdict_indicators.extend_from_slice(&rep.indicators);
     }
 
-    let mut score = 0.0;
-    let mut id_scores: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
-
-    // Only count the maximum severity score for each unique indicator ID
-    for indicator in &all_indicators {
-        let points = match indicator.severity.as_str() {
-            "critical" => 28.0,
-            "high" => 10.0,
-            "med" => 3.0,
-            "low" => 1.0,
-            _ => 2.0,
-        };
-        let current = id_scores.entry(indicator.id.clone()).or_insert(0.0);
-        if points > *current {
-            *current = points;
-        }
-    }
-
-    for points in id_scores.values() {
-        score += points;
-    }
-
-    if let Some(rep) = reputation {
-        score += ((1.0 - rep.author_score) * 32.0).round();
-    }
-
-    let risk_score = score.clamp(0.0, 100.0) as u8;
-    let risk_tier = if risk_score >= 85 {
-        "CRITICAL"
-    } else if risk_score >= 65 {
-        "HIGH"
-    } else if risk_score >= 40 {
-        "MEDIUM"
+    let reputation_fragment = if reputation.is_some() {
+        " and reputation"
     } else {
-        "LOW"
-    }
-    .to_string();
-
+        ""
+    };
     let summary = format!(
-        "Jarspect assessed this mod as {risk_tier} risk ({risk_score}/100) from layered static, YARA-X, behavior, and reputation signals."
+        "Jarspect assessed this mod as {} risk ({}/100) from static capability{} evidence.",
+        scored.risk_tier, scored.risk_score, reputation_fragment
     );
 
-    let mut explanation = vec![
-        format!(
-            "Upload is assessed as {risk_tier} risk ({risk_score}/100) based on weighted indicator severity."
-        ),
-        format!("Indicators considered: {}", all_indicators.len()),
-    ];
-    for indicator in all_indicators.iter().take(6) {
-        explanation.push(format!(
-            "- [{}] {} ({}) :: {}",
-            indicator.id, indicator.title, indicator.severity, indicator.evidence
-        ));
-    }
-
     Verdict {
-        risk_tier,
-        risk_score,
+        risk_tier: scored.risk_tier,
+        risk_score: scored.risk_score as u8,
         summary,
-        explanation: explanation.join("\n"),
-        indicators: all_indicators,
+        explanation: scored.explanation.join("\n"),
+        indicators: verdict_indicators,
     }
 }
 
@@ -916,8 +796,10 @@ mod tests {
             },
             "behavior": {
                 "predicted_network_urls": [],
+                "predicted_commands": [],
                 "predicted_file_writes": [],
                 "predicted_persistence": [],
+                "predictions": [],
                 "confidence": 0.42,
                 "indicators": []
             },
@@ -987,5 +869,64 @@ mod tests {
             .expect("expected payload without bytecode_evidence to deserialize");
 
         assert!(parsed.result.bytecode_evidence.is_none());
+    }
+
+    #[test]
+    fn verdict_ignores_behavior_prediction_outputs() {
+        let static_indicators = vec![Indicator {
+            source: "detector".to_string(),
+            id: "DETC-02.NETWORK_IO".to_string(),
+            title: "Network primitive".to_string(),
+            category: "capability".to_string(),
+            severity: "high".to_string(),
+            file_path: Some("DemoMod.class".to_string()),
+            evidence: "URLConnection.connect".to_string(),
+            rationale: "Outbound networking primitive detected.".to_string(),
+            evidence_locations: None,
+            extracted_urls: Some(vec!["https://example.com/c2".to_string()]),
+            extracted_commands: None,
+            extracted_file_paths: None,
+        }];
+
+        let empty_behavior = BehaviorPrediction {
+            predicted_network_urls: vec![],
+            predicted_commands: vec![],
+            predicted_file_writes: vec![],
+            predicted_persistence: vec![],
+            predictions: vec![],
+            confidence: 0.0,
+            indicators: vec![],
+        };
+        let populated_behavior = BehaviorPrediction {
+            predicted_network_urls: vec!["https://evil.example/c2".to_string()],
+            predicted_commands: vec!["powershell -enc AAAA".to_string()],
+            predicted_file_writes: vec!["mods/cache.bin".to_string()],
+            predicted_persistence: vec!["schtasks".to_string()],
+            predictions: vec![behavior::PredictedBehavior {
+                kind: "network_url".to_string(),
+                value: "https://evil.example/c2".to_string(),
+                confidence: 0.9,
+                supporting_indicator_ids: vec!["DETC-02.NETWORK_IO".to_string()],
+                rationale: "Derived from extracted indicator fields; supporting indicators: DETC-02.NETWORK_IO."
+                    .to_string(),
+            }],
+            confidence: 0.9,
+            indicators: vec![],
+        };
+
+        assert_ne!(
+            empty_behavior.predicted_network_urls,
+            populated_behavior.predicted_network_urls
+        );
+
+        let score_for_context = |behavior_prediction: &BehaviorPrediction| {
+            let _ = behavior_prediction;
+            build_verdict(&static_indicators, None).risk_score
+        };
+
+        assert_eq!(
+            score_for_context(&empty_behavior),
+            score_for_context(&populated_behavior)
+        );
     }
 }
