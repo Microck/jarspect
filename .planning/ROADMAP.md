@@ -28,7 +28,12 @@ This milestone makes scan results reliable by switching from lossy string scanni
   2. `/scan` results include resolved `invoke*` references as `(owner, name, descriptor)` plus location metadata (class, method, instruction offset when available).
   3. Strings constructed via `new String(new byte[]{...})` appear in findings as reconstructed strings (not placeholder/garbled evidence).
   4. Existing endpoints remain (`/upload`, `/scan`, `/scans/{scan_id}`) and any response changes are additive only.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] `01-bytecode-evidence-core-01-PLAN.md` — Add bytecode evidence schema + constant-pool string extraction wired into `/scan`
+- [ ] `01-bytecode-evidence-core-02-PLAN.md` — Emit resolved invoke* evidence with per-method pc offsets
+- [ ] `01-bytecode-evidence-core-03-PLAN.md` — Reconstruct `new String(new byte[]{...})` strings and verify via demo fixture
 
 ### Phase 2: Archive + YARA Fidelity
 **Goal**: The scan pipeline accurately understands archive structure (including nested jars) and produces entry-scoped YARA evidence with trustworthy severities.
