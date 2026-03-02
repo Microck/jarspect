@@ -1,4 +1,6 @@
 rule runtime_exec_marker {
+  meta:
+    severity = "high"
   strings:
     $exec = "Runtime.getRuntime().exec"
   condition:
@@ -6,6 +8,8 @@ rule runtime_exec_marker {
 }
 
 rule suspicious_payload_url {
+  meta:
+    severity = "low"
   strings:
     $url = "https://payload.example.invalid/bootstrap"
   condition:

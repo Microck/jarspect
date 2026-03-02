@@ -15,7 +15,7 @@ use tokio::fs;
 use tower_http::services::ServeDir;
 use tracing::info;
 use uuid::Uuid;
-use yara_x::{Compiler, Rules, Scanner};
+use yara_x::Compiler;
 
 mod analysis;
 pub use analysis::ArchiveEntry;
@@ -26,7 +26,7 @@ struct AppState {
     scans_dir: PathBuf,
     web_dir: PathBuf,
     signatures: Arc<Vec<SignatureDefinition>>,
-    yara_rules: Arc<Rules>,
+    yara_rulepacks: Arc<Vec<analysis::YaraRulepack>>,
     upload_max_bytes: usize,
 }
 
@@ -189,25 +189,20 @@ async fn main() -> Result<()> {
     fs::create_dir_all(&scans_dir).await?;
 
     let active_rulepacks = parse_active_rulepacks()?;
-    let signature_paths = active_rulepacks
+    let signatures = Arc::new(load_signatures(cwd.as_path(), &active_rulepacks)?);
+    let yara_rulepacks = Arc::new(load_yara_rulepacks(cwd.as_path(), &active_rulepacks)?);
+    let rulepack_names = active_rulepacks
         .iter()
-        .map(|pack| signatures_path_for_pack(cwd.as_path(), pack))
+        .map(|pack| pack.as_str())
         .collect::<Vec<_>>();
-    let yara_paths = active_rulepacks
-        .iter()
-        .map(|pack| yara_path_for_pack(cwd.as_path(), pack))
-        .collect::<Vec<_>>();
-
-    let signatures = Arc::new(load_signatures(&signature_paths)?);
-    let yara_rules = Arc::new(load_yara_rules(&yara_paths)?);
-    info!(rulepacks = ?active_rulepacks, "loaded signature and YARA rulepacks");
+    info!(rulepacks = ?rulepack_names, "loaded signature and YARA rulepacks");
 
     let state = AppState {
         uploads_dir,
         scans_dir,
         web_dir: web_dir.clone(),
         signatures,
-        yara_rules,
+        yara_rulepacks,
         upload_max_bytes: 50 * 1024 * 1024,
     };
 
@@ -319,7 +314,7 @@ async fn scan(
             .count(),
     };
 
-    let static_findings = run_static_analysis(&entries, &state.signatures, &state.yara_rules)?;
+    let static_findings = run_static_analysis(&entries, &state.signatures, &state.yara_rulepacks)?;
     let behavior = infer_behavior(&static_findings.matches);
     let reputation = request.author.as_ref().map(score_author);
     let verdict = build_verdict(
@@ -374,7 +369,7 @@ async fn get_scan(
 fn run_static_analysis(
     entries: &[ArchiveEntry],
     signatures: &[SignatureDefinition],
-    yara_rules: &Rules,
+    yara_rulepacks: &[analysis::YaraRulepack],
 ) -> Result<StaticFindings> {
     let mut matches = Vec::new();
     let mut matched_pattern_ids = Vec::new();
@@ -459,23 +454,28 @@ fn run_static_analysis(
                 });
             }
         }
+    }
 
-        let mut scanner = Scanner::new(yara_rules);
-        let scan_results = scanner.scan(entry.bytes.as_slice())?;
-        for m in scan_results.matching_rules() {
-            let yara_id = format!("YARA-{}", m.identifier().to_uppercase());
-            matched_signature_ids.push(yara_id.clone());
-            matches.push(Indicator {
-                source: "yara".to_string(),
-                id: yara_id,
-                title: "YARA-X rule match".to_string(),
-                category: "signature".to_string(),
-                severity: "high".to_string(),
-                file_path: Some(entry.path.clone()),
-                evidence: format!("Matched rule {}", m.identifier()),
-                rationale: "Rule-based malware signature detected by YARA-X.".to_string(),
-            });
-        }
+    for (entry_path, finding) in analysis::scan_yara_rulepacks(entries, yara_rulepacks)? {
+        let yara_id = format!(
+            "YARA-{}-{}",
+            finding.pack.indicator_prefix(),
+            finding.rule_identifier.to_ascii_uppercase()
+        );
+        matched_signature_ids.push(yara_id.clone());
+        matches.push(Indicator {
+            source: "yara".to_string(),
+            id: yara_id,
+            title: "YARA-X rule match".to_string(),
+            category: "signature".to_string(),
+            severity: finding.severity,
+            file_path: Some(entry_path),
+            evidence: finding.evidence,
+            rationale: format!(
+                "Rule-based malware signature detected by YARA-X {} rulepack.",
+                finding.pack.as_str()
+            ),
+        });
     }
 
     matched_pattern_ids.sort();
@@ -694,9 +694,8 @@ fn snippet(text: &str, start: usize, end: usize) -> String {
     text[left..right].trim().to_string()
 }
 
-fn parse_active_rulepacks() -> Result<Vec<String>> {
-    let raw_value =
-        std::env::var("JARSPECT_RULEPACKS").unwrap_or_else(|_| "demo".to_string());
+fn parse_active_rulepacks() -> Result<Vec<analysis::RulepackKind>> {
+    let raw_value = std::env::var("JARSPECT_RULEPACKS").unwrap_or_else(|_| "demo".to_string());
     let mut packs = Vec::new();
 
     for token in raw_value.split(',') {
@@ -705,17 +704,14 @@ fn parse_active_rulepacks() -> Result<Vec<String>> {
             continue;
         }
 
-        match normalized.as_str() {
-            "demo" | "prod" => {
-                if !packs.iter().any(|existing| existing == &normalized) {
-                    packs.push(normalized);
-                }
+        if let Some(pack) = analysis::RulepackKind::from_token(normalized.as_str()) {
+            if !packs.contains(&pack) {
+                packs.push(pack);
             }
-            _ => {
-                anyhow::bail!(
-                    "Invalid JARSPECT_RULEPACKS value '{normalized}'. Expected demo, prod, or demo,prod"
-                )
-            }
+        } else {
+            anyhow::bail!(
+                "Invalid JARSPECT_RULEPACKS value '{normalized}'. Expected demo, prod, or demo,prod"
+            )
         }
     }
 
@@ -736,11 +732,15 @@ fn yara_path_for_pack(cwd: &Path, pack: &str) -> PathBuf {
     cwd.join("data/signatures").join(pack).join("rules.yar")
 }
 
-fn load_signatures(paths: &[PathBuf]) -> Result<Vec<SignatureDefinition>> {
+fn load_signatures(
+    cwd: &Path,
+    packs: &[analysis::RulepackKind],
+) -> Result<Vec<SignatureDefinition>> {
     let mut signatures = Vec::new();
 
-    for path in paths {
-        let payload = std::fs::read_to_string(path)
+    for pack in packs {
+        let path = signatures_path_for_pack(cwd, pack.as_str());
+        let payload = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read signature corpus: {}", path.display()))?;
         let mut parsed: Vec<SignatureDefinition> = serde_json::from_str(&payload)
             .with_context(|| format!("Invalid signature JSON: {}", path.display()))?;
@@ -750,19 +750,27 @@ fn load_signatures(paths: &[PathBuf]) -> Result<Vec<SignatureDefinition>> {
     Ok(signatures)
 }
 
-fn load_yara_rules(paths: &[PathBuf]) -> Result<Rules> {
-    let mut compiler = Compiler::new();
+fn load_yara_rulepacks(
+    cwd: &Path,
+    packs: &[analysis::RulepackKind],
+) -> Result<Vec<analysis::YaraRulepack>> {
+    let mut loaded_rulepacks = Vec::new();
 
-    for path in paths {
-        let source = std::fs::read_to_string(path)
+    for pack in packs {
+        let path = yara_path_for_pack(cwd, pack.as_str());
+        let source = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read YARA rules: {}", path.display()))?;
+        let mut compiler = Compiler::new();
         compiler
             .add_source(source.as_str())
             .with_context(|| format!("Failed compiling YARA rules from {}", path.display()))?;
+        loaded_rulepacks.push(analysis::YaraRulepack {
+            kind: *pack,
+            rules: compiler.build(),
+        });
     }
 
-    let rules = compiler.build();
-    Ok(rules)
+    Ok(loaded_rulepacks)
 }
 
 fn validate_artifact_id(value: &str) -> Result<(), AppError> {
