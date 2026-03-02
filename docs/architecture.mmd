@@ -1,14 +1,14 @@
 graph TB
   subgraph "Client"
-    UI[Browser UI\nhttp://localhost:8000/]
+    UI[Browser UI\nhttp://localhost:18000/]
     CLI[bash scripts/demo_run.sh]
   end
 
-  subgraph "Jarspect (Axum server)"
+  subgraph "Jarspect (Axum server · src/main.rs)"
     R[Router]
     H[GET /health]
     UP[POST /upload\n-> upload_id]
-    SC[POST /scan\n(upload_id + author)\n-> scan_id + result]
+    SC[POST /scan\n-> scan_id + result]
     GET[GET /scans/{scan_id}]
   end
 
@@ -17,17 +17,22 @@ graph TB
     SCS[(.local-data/scans/{scan_id}.json)]
   end
 
-  subgraph "Scan pipeline"
-    INTK[Intake\n(unzip + enumerate)]
-    STAT[Static analysis\n(regex + signatures + YARA-X)]
-    BEH[Behavior prediction\n(URLs/files/persistence)]
-    REP[Reputation scoring\n(author metadata)]
-    VER[Verdict\n(risk tier + score + indicators)]
+  subgraph "Scan pipeline (src/lib.rs · run_scan)"
+    ARCH[Archive traversal\nrecursive jar-in-jar\nbudget-gated inflation]
+    BYTE[Bytecode evidence\ncafebabe class parse\nCP strings + invoke resolve]
+    BARS[Byte-array strings\nnew String·new byte·...·\nopcode state machine]
+    YARA_S[YARA per-entry\ninflate + scan individually\nseverity from rule metadata]
+    META[Metadata checks\nfabric.mod.json / mods.toml\nplugin.yml / MANIFEST.MF]
+    DET[8 Capability detectors\nDETC-01..08\nEvidenceIndex + correlation gates]
+    SCORE[Scoring engine\ndedup + diminishing returns\nsynergy bonuses -> 0-100]
+    BEH[Behavior prediction\nevidence-derived URLs\ncommands / paths / persistence]
+    REP[Reputation scoring\nauthor metadata · optional]
+    VER[Verdict synthesis\nrisk_tier · risk_score\nsummary · explanation · indicators]
   end
 
   subgraph "Signature data"
-    SIGJSON[data/signatures/signatures.json]
-    YARA[data/signatures/rules.yar]
+    DEMO_SIG[data/signatures/demo/\nsignatures.json + rules.yar]
+    PROD_SIG[data/signatures/prod/\nsignatures.json + rules.yar]
   end
 
   UI --> R
@@ -41,9 +46,23 @@ graph TB
   UP -->|write jar| UPL
   SC -->|read jar| UPL
 
-  SC --> INTK --> STAT --> BEH --> REP --> VER
-  STAT --> SIGJSON
-  STAT --> YARA
+  SC --> ARCH
+  ARCH --> BYTE
+  BYTE --> BARS
+  ARCH --> YARA_S
+  ARCH --> META
+  BYTE --> DET
+  BARS --> DET
+  DET --> SCORE
+  YARA_S --> SCORE
+  META --> SCORE
+  SCORE --> BEH
+  SCORE --> VER
+  BEH --> VER
+  REP --> VER
+
+  YARA_S --> DEMO_SIG
+  YARA_S --> PROD_SIG
 
   VER -->|persist result| SCS
   GET -->|read result| SCS

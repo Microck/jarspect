@@ -1,4 +1,5 @@
-# Planning docs are tracked (do not ignore `.planning/`)
+# Local planning artifacts (do not commit)
+.planning/
 
 # Python bytecode / caches
 __pycache__/
@@ -63,3 +64,6 @@ mcp-server-error.log
 
 # local.settings.json (Functions / tool secrets)
 local.settings.json
+
+# opensrc - source code for packages
+opensrc/
