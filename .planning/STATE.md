@@ -9,18 +9,18 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 ## Current Position
 
-Phase: 5 of 6 (UI Verdict Rendering)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-03-02 - Completed 05-ui-verdict-rendering-01-PLAN.md
+Phase: 6 of 6 (Regression Fixtures)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-03-02 - Completed 06-regression-fixtures-01-PLAN.md
 
-Progress: [█████████░] 87%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 9.3 min
+- Total plans completed: 14
+- Average duration: 9.4 min
 
 **By Phase:**
 
@@ -31,6 +31,7 @@ Progress: [█████████░] 87%
 | 03-capability-detectors | 3 | 30 min | 10.0 min |
 | 04-scoring-behavior-prediction | 3 | 31 min | 10.3 min |
 | 05-ui-verdict-rendering | 1 | 4 min | 4.0 min |
+| 06-regression-fixtures | 1 | 11 min | 11.0 min |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Progress: [█████████░] 87%
 | 05-ui-verdict-rendering-01 | Normalized UI tier tokens before applying `data-tier` and rendering headlines. | Keeps verdict theming stable for mixed-case/backend variant tiers and prevents CSS token mismatch. |
 | 05-ui-verdict-rendering-01 | Rendered CLEAN headline as `CLEAN · score/100` while preserving explicit UNKNOWN risk wording. | Removes contradictory "CLEAN risk" wording without changing non-CLEAN semantics. |
 | 05-ui-verdict-rendering-01 | Canonicalized indicator severity display labels from normalized tokens (`med` -> `MEDIUM`) while keeping normalized `data-sev`. | Ensures styling and visible severity text stay consistent even with backend shorthand values. |
+| 06-regression-fixtures-01 | Re-homed scan pipeline types/helpers into `src/lib.rs` with exported `run_scan(state, request, scan_id_override)`. | Enables deterministic regression tests to run the real scan pipeline without HTTP startup overhead. |
+| 06-regression-fixtures-01 | Kept API response semantics by mapping known library scan errors back to existing 400/404 handler behavior. | Preserves established `/scan` error JSON/status behavior while centralizing scan execution in library code. |
+| 06-regression-fixtures-01 | Added `tempfile` strictly under `[dev-dependencies]` and pinned version `3.26.0`. | Supports temp-dir based regression fixtures without changing runtime dependency surface. |
 
 ### Pending Todos
 
@@ -89,5 +93,5 @@ Progress: [█████████░] 87%
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 05-ui-verdict-rendering-01-PLAN.md
-Resume file: .planning/phases/06-regression-fixtures/06-regression-fixtures-01-PLAN.md
+Stopped at: Completed 06-regression-fixtures-01-PLAN.md
+Resume file: .planning/phases/06-regression-fixtures/06-regression-fixtures-02-PLAN.md
