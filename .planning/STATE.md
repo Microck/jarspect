@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Upload a `.jar`, get a risk verdict with explainable indicators before you install.
-**Current focus:** Phase 5 - UI Verdict Rendering
+**Current focus:** Phase 6 - Regression Fixtures
 
 ## Current Position
 
-Phase: 4 of 6 (Scoring + Behavior Prediction)
-Plan: 3 of 3 in current phase
+Phase: 5 of 6 (UI Verdict Rendering)
+Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-03-02 - Completed 04-scoring-behavior-prediction-03-PLAN.md
+Last activity: 2026-03-02 - Completed 05-ui-verdict-rendering-01-PLAN.md
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 9.8 min
+- Total plans completed: 13
+- Average duration: 9.3 min
 
 **By Phase:**
 
@@ -30,6 +30,7 @@ Progress: [████████░░] 80%
 | 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
 | 03-capability-detectors | 3 | 30 min | 10.0 min |
 | 04-scoring-behavior-prediction | 3 | 31 min | 10.3 min |
+| 05-ui-verdict-rendering | 1 | 4 min | 4.0 min |
 
 ## Accumulated Context
 
@@ -69,6 +70,9 @@ Progress: [████████░░] 80%
 | 04-scoring-behavior-prediction-03 | Mapped `behavior::derive_behavior(...)` directly into API `BehaviorPrediction` fields and set `behavior.indicators` explicitly empty. | Replaces synthetic placeholder behavior indicators with evidence-derived outputs while keeping behavior non-scoring. |
 | 04-scoring-behavior-prediction-03 | Refactored `build_verdict(...)` to accept only static indicators plus optional reputation and delegate scoring to `score_static_indicators(...)`. | Structurally prevents behavior->score feedback and aligns verdict math/explanations with the shared scoring engine. |
 | 04-scoring-behavior-prediction-03 | Added serde-default additive fields `predicted_commands` and `predictions` to `BehaviorPrediction`. | Preserves backward-compatible scan JSON deserialization while exposing BEHV-02 structured prediction data. |
+| 05-ui-verdict-rendering-01 | Normalized UI tier tokens before applying `data-tier` and rendering headlines. | Keeps verdict theming stable for mixed-case/backend variant tiers and prevents CSS token mismatch. |
+| 05-ui-verdict-rendering-01 | Rendered CLEAN headline as `CLEAN · score/100` while preserving explicit UNKNOWN risk wording. | Removes contradictory "CLEAN risk" wording without changing non-CLEAN semantics. |
+| 05-ui-verdict-rendering-01 | Canonicalized indicator severity display labels from normalized tokens (`med` -> `MEDIUM`) while keeping normalized `data-sev`. | Ensures styling and visible severity text stay consistent even with backend shorthand values. |
 
 ### Pending Todos
 
@@ -80,9 +84,10 @@ Progress: [████████░░] 80%
 - `scripts/demo_run.sh` auto-start path remains sensitive to first-run compile timing; prebuilding with `cargo build` avoids timeout in verification flows.
 - Demo fixture now compiles `DemoMod.class` when JDK tools are present, but fallback environments without `javac` still produce source-only jars.
 - Java fixture compilation emits deprecation warnings from JDK tooling; non-blocking for scan behavior.
+- Local verification environments may have occupied bind ports (`127.0.0.1:18000/18001`); prefer explicit `JARSPECT_BIND` or reuse active local instance for UI/browser checks.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 04-scoring-behavior-prediction-03-PLAN.md
-Resume file: .planning/phases/05-ui-verdict-rendering/05-ui-verdict-rendering-01-PLAN.md
+Stopped at: Completed 05-ui-verdict-rendering-01-PLAN.md
+Resume file: .planning/phases/06-regression-fixtures/06-regression-fixtures-01-PLAN.md
