@@ -19,6 +19,8 @@ use uuid::Uuid;
 use yara_x::{Compiler, Rules, Scanner};
 use zip::ZipArchive;
 
+mod analysis;
+
 #[derive(Clone)]
 struct AppState {
     uploads_dir: PathBuf,
