@@ -1,4 +1,3 @@
-// Legacy demo compatibility mirror.
 rule runtime_exec_marker {
   strings:
     $exec = "Runtime.getRuntime().exec"

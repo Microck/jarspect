@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -188,10 +188,19 @@ async fn main() -> Result<()> {
     fs::create_dir_all(&uploads_dir).await?;
     fs::create_dir_all(&scans_dir).await?;
 
-    let signatures = Arc::new(load_signatures(
-        cwd.join("data/signatures/signatures.json"),
-    )?);
-    let yara_rules = Arc::new(load_yara_rules(cwd.join("data/signatures/rules.yar"))?);
+    let active_rulepacks = parse_active_rulepacks()?;
+    let signature_paths = active_rulepacks
+        .iter()
+        .map(|pack| signatures_path_for_pack(cwd.as_path(), pack))
+        .collect::<Vec<_>>();
+    let yara_paths = active_rulepacks
+        .iter()
+        .map(|pack| yara_path_for_pack(cwd.as_path(), pack))
+        .collect::<Vec<_>>();
+
+    let signatures = Arc::new(load_signatures(&signature_paths)?);
+    let yara_rules = Arc::new(load_yara_rules(&yara_paths)?);
+    info!(rulepacks = ?active_rulepacks, "loaded signature and YARA rulepacks");
 
     let state = AppState {
         uploads_dir,
@@ -685,21 +694,73 @@ fn snippet(text: &str, start: usize, end: usize) -> String {
     text[left..right].trim().to_string()
 }
 
-fn load_signatures(path: PathBuf) -> Result<Vec<SignatureDefinition>> {
-    let payload = std::fs::read_to_string(&path)
-        .with_context(|| format!("Failed to read signature corpus: {}", path.display()))?;
-    let parsed: Vec<SignatureDefinition> = serde_json::from_str(&payload)
-        .with_context(|| format!("Invalid signature JSON: {}", path.display()))?;
-    Ok(parsed)
+fn parse_active_rulepacks() -> Result<Vec<String>> {
+    let raw_value =
+        std::env::var("JARSPECT_RULEPACKS").unwrap_or_else(|_| "demo".to_string());
+    let mut packs = Vec::new();
+
+    for token in raw_value.split(',') {
+        let normalized = token.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            continue;
+        }
+
+        match normalized.as_str() {
+            "demo" | "prod" => {
+                if !packs.iter().any(|existing| existing == &normalized) {
+                    packs.push(normalized);
+                }
+            }
+            _ => {
+                anyhow::bail!(
+                    "Invalid JARSPECT_RULEPACKS value '{normalized}'. Expected demo, prod, or demo,prod"
+                )
+            }
+        }
+    }
+
+    if packs.is_empty() {
+        anyhow::bail!("JARSPECT_RULEPACKS must include at least one pack: demo or prod")
+    }
+
+    Ok(packs)
 }
 
-fn load_yara_rules(path: PathBuf) -> Result<Rules> {
-    let source = std::fs::read_to_string(&path)
-        .with_context(|| format!("Failed to read YARA rules: {}", path.display()))?;
+fn signatures_path_for_pack(cwd: &Path, pack: &str) -> PathBuf {
+    cwd.join("data/signatures")
+        .join(pack)
+        .join("signatures.json")
+}
+
+fn yara_path_for_pack(cwd: &Path, pack: &str) -> PathBuf {
+    cwd.join("data/signatures").join(pack).join("rules.yar")
+}
+
+fn load_signatures(paths: &[PathBuf]) -> Result<Vec<SignatureDefinition>> {
+    let mut signatures = Vec::new();
+
+    for path in paths {
+        let payload = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read signature corpus: {}", path.display()))?;
+        let mut parsed: Vec<SignatureDefinition> = serde_json::from_str(&payload)
+            .with_context(|| format!("Invalid signature JSON: {}", path.display()))?;
+        signatures.append(&mut parsed);
+    }
+
+    Ok(signatures)
+}
+
+fn load_yara_rules(paths: &[PathBuf]) -> Result<Rules> {
     let mut compiler = Compiler::new();
-    compiler
-        .add_source(source.as_str())
-        .with_context(|| format!("Failed compiling YARA rules from {}", path.display()))?;
+
+    for path in paths {
+        let source = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read YARA rules: {}", path.display()))?;
+        compiler
+            .add_source(source.as_str())
+            .with_context(|| format!("Failed compiling YARA rules from {}", path.display()))?;
+    }
+
     let rules = compiler.build();
     Ok(rules)
 }
