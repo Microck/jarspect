@@ -59,6 +59,8 @@ struct ScanResult {
     static_findings: StaticFindings,
     behavior: BehaviorPrediction,
     reputation: Option<ReputationResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bytecode_evidence: Option<analysis::BytecodeEvidence>,
     verdict: Verdict,
 }
 
@@ -315,12 +317,14 @@ async fn scan(
         &behavior.indicators,
         reputation.as_ref(),
     );
+    let bytecode_evidence = Some(analysis::extract_bytecode_evidence(&entries));
 
     let result = ScanResult {
         intake,
         static_findings,
         behavior,
         reputation,
+        bytecode_evidence,
         verdict,
     };
 
@@ -735,4 +739,101 @@ fn validate_artifact_id(value: &str) -> Result<(), AppError> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn base_scan_result_json() -> serde_json::Value {
+        json!({
+            "intake": {
+                "upload_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "storage_path": ".local-data/uploads/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jar",
+                "file_count": 2,
+                "class_file_count": 1
+            },
+            "static": {
+                "matches": [],
+                "counts_by_category": {},
+                "counts_by_severity": {},
+                "matched_pattern_ids": [],
+                "matched_signature_ids": [],
+                "analyzed_files": 2
+            },
+            "behavior": {
+                "predicted_network_urls": [],
+                "predicted_file_writes": [],
+                "predicted_persistence": [],
+                "confidence": 0.42,
+                "indicators": []
+            },
+            "reputation": null,
+            "verdict": {
+                "risk_tier": "LOW",
+                "risk_score": 7,
+                "summary": "safe-ish",
+                "explanation": "explanation",
+                "indicators": []
+            }
+        })
+    }
+
+    #[test]
+    fn scan_run_response_deserializes_with_bytecode_evidence() {
+        let mut payload = json!({
+            "scan_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "result": base_scan_result_json()
+        });
+
+        payload["result"]["bytecode_evidence"] = json!({
+            "items": [
+                {
+                    "kind": "cp_utf8",
+                    "value": "java/lang/String",
+                    "location": {
+                        "entry_path": "com/example/Agent.class",
+                        "class_name": "com/example/Agent",
+                        "method": {
+                            "name": "run",
+                            "descriptor": "()V"
+                        },
+                        "pc": null
+                    }
+                }
+            ]
+        });
+
+        let serialized = serde_json::to_string(&payload).expect("failed to serialize test payload");
+        let parsed = serde_json::from_str::<ScanRunResponse>(&serialized)
+            .expect("expected payload with bytecode_evidence to deserialize");
+
+        let evidence = parsed
+            .result
+            .bytecode_evidence
+            .expect("expected bytecode_evidence to be present");
+        assert_eq!(evidence.items.len(), 1);
+
+        let analysis::BytecodeEvidenceItem::CpUtf8 { location, .. } = &evidence.items[0] else {
+            panic!("expected cp_utf8 variant")
+        };
+        let method = location.method.as_ref().expect("expected method metadata");
+        assert_eq!(method.name, "run");
+        assert_eq!(method.descriptor, "()V");
+    }
+
+    #[test]
+    fn scan_run_response_deserializes_without_bytecode_evidence() {
+        let payload = json!({
+            "scan_id": "cccccccccccccccccccccccccccccccc",
+            "result": base_scan_result_json()
+        });
+
+        let serialized = serde_json::to_string(&payload).expect("failed to serialize test payload");
+        let parsed = serde_json::from_str::<ScanRunResponse>(&serialized)
+            .expect("expected payload without bytecode_evidence to deserialize");
+
+        assert!(parsed.result.bytecode_evidence.is_none());
+    }
 }
