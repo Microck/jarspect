@@ -375,6 +375,20 @@ fn run_static_analysis(
     let mut matched_pattern_ids = Vec::new();
     let mut matched_signature_ids = Vec::new();
 
+    let metadata_findings: Vec<analysis::MetadataFinding> = analysis::analyze_metadata(entries);
+    for finding in metadata_findings {
+        matches.push(Indicator {
+            source: "metadata".to_string(),
+            id: finding.id,
+            title: finding.title,
+            category: "metadata".to_string(),
+            severity: finding.severity,
+            file_path: Some(finding.file_path),
+            evidence: finding.evidence,
+            rationale: finding.rationale,
+        });
+    }
+
     let patterns = [
         (
             "EXEC-RUNTIME",
