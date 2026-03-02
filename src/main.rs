@@ -18,6 +18,7 @@ use uuid::Uuid;
 use yara_x::Compiler;
 
 mod analysis;
+mod detectors;
 pub use analysis::ArchiveEntry;
 
 #[derive(Clone)]
@@ -119,6 +120,14 @@ struct Indicator {
     file_path: Option<String>,
     evidence: String,
     rationale: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    evidence_locations: Option<Vec<analysis::Location>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    extracted_urls: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    extracted_commands: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    extracted_file_paths: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -314,7 +323,13 @@ async fn scan(
             .count(),
     };
 
-    let static_findings = run_static_analysis(&entries, &state.signatures, &state.yara_rulepacks)?;
+    let bytecode_evidence = Some(analysis::extract_bytecode_evidence(&entries));
+    let static_findings = run_static_analysis(
+        &entries,
+        bytecode_evidence.as_ref(),
+        &state.signatures,
+        &state.yara_rulepacks,
+    )?;
     let behavior = infer_behavior(&static_findings.matches);
     let reputation = request.author.as_ref().map(score_author);
     let verdict = build_verdict(
@@ -322,7 +337,6 @@ async fn scan(
         &behavior.indicators,
         reputation.as_ref(),
     );
-    let bytecode_evidence = Some(analysis::extract_bytecode_evidence(&entries));
 
     let result = ScanResult {
         intake,
@@ -368,6 +382,7 @@ async fn get_scan(
 
 fn run_static_analysis(
     entries: &[ArchiveEntry],
+    bytecode_evidence: Option<&analysis::BytecodeEvidence>,
     signatures: &[SignatureDefinition],
     yara_rulepacks: &[analysis::YaraRulepack],
 ) -> Result<StaticFindings> {
@@ -386,6 +401,10 @@ fn run_static_analysis(
             file_path: Some(finding.file_path),
             evidence: finding.evidence,
             rationale: finding.rationale,
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
         });
     }
 
@@ -439,6 +458,10 @@ fn run_static_analysis(
                     file_path: Some(entry.path.clone()),
                     evidence: snippet(entry_text, found.start(), found.end()),
                     rationale: (*rationale).to_string(),
+                    evidence_locations: None,
+                    extracted_urls: None,
+                    extracted_commands: None,
+                    extracted_file_paths: None,
                 });
             }
         }
@@ -465,6 +488,10 @@ fn run_static_analysis(
                     file_path: Some(entry.path.clone()),
                     evidence: snippet(entry_text, start, end),
                     rationale: signature.description.clone(),
+                    evidence_locations: None,
+                    extracted_urls: None,
+                    extracted_commands: None,
+                    extracted_file_paths: None,
                 });
             }
         }
@@ -489,7 +516,36 @@ fn run_static_analysis(
                 "Rule-based malware signature detected by YARA-X {} rulepack.",
                 finding.pack.as_str()
             ),
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
         });
+    }
+
+    if let Some(bytecode_evidence) = bytecode_evidence {
+        for finding in detectors::run_capability_detectors(bytecode_evidence, entries) {
+            let evidence = detector_evidence_summary(&finding);
+            let file_path = finding
+                .evidence_locations
+                .first()
+                .map(|location| location.entry_path.clone());
+
+            matches.push(Indicator {
+                source: "detector".to_string(),
+                id: finding.id,
+                title: finding.title,
+                category: finding.category,
+                severity: finding.severity,
+                file_path,
+                evidence,
+                rationale: finding.rationale,
+                evidence_locations: Some(finding.evidence_locations),
+                extracted_urls: to_optional_vec(finding.extracted_urls),
+                extracted_commands: to_optional_vec(finding.extracted_commands),
+                extracted_file_paths: to_optional_vec(finding.extracted_file_paths),
+            });
+        }
     }
 
     matched_pattern_ids.sort();
@@ -541,6 +597,10 @@ fn infer_behavior(static_indicators: &[Indicator]) -> BehaviorPrediction {
                     .to_string(),
             rationale: "Static URL and signature evidence imply outbound command traffic."
                 .to_string(),
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
         });
     }
 
@@ -560,6 +620,10 @@ fn infer_behavior(static_indicators: &[Indicator]) -> BehaviorPrediction {
             evidence: "mechanisms=startup task registration (predicted)".to_string(),
             rationale: "Execution primitives and obfuscation markers indicate persistence setup."
                 .to_string(),
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
         });
     }
 
@@ -574,6 +638,10 @@ fn infer_behavior(static_indicators: &[Indicator]) -> BehaviorPrediction {
             evidence: "writes=mods/cache.bin".to_string(),
             rationale: "Observed payload and execution markers imply staged file writes."
                 .to_string(),
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
         });
     }
 
@@ -613,6 +681,10 @@ fn score_author(author: &AuthorMetadata) -> ReputationResult {
                 "author_score={score:.3}; account_age_days={age}; prior_mod_count={prior_mods}; report_count={reports}; mod_id={mod_id}"
             ),
             rationale: "Low-author-history profile with report activity increases risk.".to_string(),
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
         });
     }
 
@@ -706,6 +778,29 @@ fn snippet(text: &str, start: usize, end: usize) -> String {
     let left = start.saturating_sub(80);
     let right = (end + 80).min(text.len());
     text[left..right].trim().to_string()
+}
+
+fn to_optional_vec(values: Vec<String>) -> Option<Vec<String>> {
+    if values.is_empty() {
+        None
+    } else {
+        Some(values)
+    }
+}
+
+fn detector_evidence_summary(finding: &detectors::DetectorFinding) -> String {
+    let mut details = vec![format!("callsites={}", finding.evidence_locations.len())];
+    if !finding.extracted_urls.is_empty() {
+        details.push(format!("urls={}", finding.extracted_urls.len()));
+    }
+    if !finding.extracted_commands.is_empty() {
+        details.push(format!("commands={}", finding.extracted_commands.len()));
+    }
+    if !finding.extracted_file_paths.is_empty() {
+        details.push(format!("paths={}", finding.extracted_file_paths.len()));
+    }
+
+    format!("{} [{}]", finding.id, details.join(", "))
 }
 
 fn parse_active_rulepacks() -> Result<Vec<analysis::RulepackKind>> {

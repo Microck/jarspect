@@ -29,6 +29,8 @@ printf 'c2.jarspect.example.invalid\n' > "${INNER_STAGE_DIR}/payload.txt"
 cp "${INNER_JAR}" "${OUTER_STAGE_DIR}/META-INF/jars/inner-demo.jar"
 
 if command -v javac >/dev/null 2>&1 && command -v jar >/dev/null 2>&1; then
+  javac -d "${OUTER_STAGE_DIR}" "${OUTER_STAGE_DIR}/com/jarspect/demo/DemoMod.java"
+
   # Keep output layout identical to fallback mode while using the JDK jar tool.
   (
     cd "${OUTER_STAGE_DIR}"

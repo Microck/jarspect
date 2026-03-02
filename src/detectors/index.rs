@@ -78,6 +78,7 @@ impl EvidenceIndex {
             .unwrap_or(&[])
     }
 
+    #[allow(dead_code)]
     pub fn all_strings(&self) -> impl Iterator<Item = &StringHit> {
         self.all_strings.iter()
     }

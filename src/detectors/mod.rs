@@ -2,6 +2,9 @@ use std::collections::HashMap;
 
 use crate::analysis::{ArchiveEntry, BytecodeEvidence, Location};
 
+pub mod capability_dynamic_load;
+pub mod capability_exec;
+pub mod capability_network;
 pub mod index;
 pub mod spec;
 
@@ -19,14 +22,21 @@ pub struct DetectorFinding {
 }
 
 pub fn run_capability_detectors(
-    _evidence: &BytecodeEvidence,
-    _entries: &[ArchiveEntry],
+    evidence: &BytecodeEvidence,
+    entries: &[ArchiveEntry],
 ) -> Vec<DetectorFinding> {
-    dedup_findings(Vec::new())
+    let _ = entries;
+
+    let index = index::EvidenceIndex::new(evidence);
+    let mut findings = Vec::new();
+    findings.extend(capability_exec::detect(&index));
+    findings.extend(capability_network::detect(&index));
+    findings.extend(capability_dynamic_load::detect(&index));
+    dedup_findings(findings)
 }
 
 pub(crate) fn dedup_findings(findings: Vec<DetectorFinding>) -> Vec<DetectorFinding> {
-    let mut merged = Vec::new();
+    let mut merged: Vec<DetectorFinding> = Vec::new();
     let mut by_id: HashMap<String, usize> = HashMap::new();
 
     for finding in findings {
