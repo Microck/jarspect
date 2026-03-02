@@ -1066,4 +1066,65 @@ mod tests {
         assert_eq!(verdict.risk_score, 100);
         assert_eq!(verdict.risk_tier, "CRITICAL");
     }
+
+    #[test]
+    fn top_contributors_use_post_cap_points() {
+        let mut indicators = Vec::new();
+        for index in 0..7 {
+            indicators.push(with_command(
+                indicator(
+                    "detector",
+                    "DETC-01.RUNTIME_EXEC",
+                    "capability",
+                    "critical",
+                    "Runtime.exec",
+                ),
+                format!("cmd.exe /c task-{index}").as_str(),
+            ));
+        }
+
+        let verdict = score_static_indicators(&indicators, None);
+        let lines = contributor_lines(&verdict.explanation);
+        let execution_lines = lines
+            .into_iter()
+            .filter(|line| line.contains(" execution/"))
+            .collect::<Vec<_>>();
+
+        assert!(!execution_lines.is_empty());
+
+        let execution_points = execution_lines
+            .iter()
+            .map(|line| {
+                line.trim_start_matches("- +")
+                    .split(' ')
+                    .next()
+                    .expect("expected contributor points")
+                    .parse::<i32>()
+                    .expect("contributor points should parse")
+            })
+            .sum::<i32>();
+
+        assert_eq!(execution_points, 75);
+    }
+
+    #[test]
+    fn reputation_points_are_capped_and_cannot_be_high_alone() {
+        let reputation = crate::ReputationResult {
+            author_id: "author-1".to_string(),
+            author_score: 0.0,
+            account_age_days: 1,
+            prior_mod_count: 0,
+            report_count: 12,
+            indicators: Vec::new(),
+        };
+
+        let verdict = score_static_indicators(&[], Some(&reputation));
+
+        assert_eq!(verdict.risk_score, 19);
+        assert_eq!(verdict.risk_tier, "LOW");
+        assert!(verdict
+            .explanation
+            .iter()
+            .any(|line| line.contains("Reputation adjustment: +19")));
+    }
 }
