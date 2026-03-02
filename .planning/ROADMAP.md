@@ -76,7 +76,12 @@ Plans:
   2. Scoring uses capability dedup + diminishing returns so repeated/duplicate signals do not inflate the score.
   3. Verdict explanation reports top contributing evidence and explicitly explains why capability combinations increased risk (synergy).
   4. Behavior prediction outputs URLs/commands/file writes derived from extracted evidence and includes confidence + rationale linking predictions to indicators.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] `04-scoring-behavior-prediction-01-PLAN.md` — Stable scoring pipeline (dedup + diminishing returns + synergy) with CLEAN tier
+- [ ] `04-scoring-behavior-prediction-02-PLAN.md` — Evidence-derived behavior prediction with confidence + rationale (no placeholders)
+- [ ] `04-scoring-behavior-prediction-03-PLAN.md` — Wire scoring + behavior into scan verdict; prevent scoring feedback
 
 ### Phase 5: UI Verdict Rendering
 **Goal**: The UI reflects the new tiers/severities consistently, including `CLEAN`, without confusing severity labels.
