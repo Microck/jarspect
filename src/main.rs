@@ -19,6 +19,7 @@ use yara_x::Compiler;
 
 mod analysis;
 mod detectors;
+mod scoring;
 pub use analysis::ArchiveEntry;
 
 #[derive(Clone)]
