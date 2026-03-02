@@ -18,6 +18,7 @@ toml = "1"
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2.5.8"
 uuid = { version = "1.16", features = ["v4", "serde"] }
 yara-x = "1.7"
 zip = "2.4"
