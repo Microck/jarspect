@@ -40,6 +40,26 @@ function numberOrUndefined(value) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function normalizeTier(rawTier) {
+  const tier = String(rawTier ?? "").trim().toLowerCase();
+  if (!tier) return "UNKNOWN";
+  if (tier === "clean") return "CLEAN";
+  if (tier === "low") return "LOW";
+  if (tier === "med" || tier === "medium" || tier === "moderate") {
+    return "MEDIUM";
+  }
+  if (tier === "high") return "HIGH";
+  if (tier === "critical") return "CRITICAL";
+  if (tier === "unknown") return "UNKNOWN";
+  return "UNKNOWN";
+}
+
+function formatTierHeadline(tier, score) {
+  if (tier === "CLEAN") return `CLEAN \u00B7 ${score}/100`;
+  if (tier === "UNKNOWN") return `UNKNOWN risk \u00B7 ${score}/100`;
+  return `${tier} risk \u00B7 ${score}/100`;
+}
+
 function buildAuthorPayload() {
   const authorId = document.getElementById("author-id").value.trim();
   if (!authorId) return undefined;
@@ -136,13 +156,19 @@ async function runScan(uploadId, authorPayload) {
 
 /* --- Severity helpers --- */
 function normalizeSeverity(sev) {
-  if (!sev) return "info";
-  const s = sev.toLowerCase();
+  const s = String(sev ?? "").trim().toLowerCase();
+  if (!s) return "info";
   if (s.includes("critical")) return "critical";
   if (s.includes("high")) return "high";
-  if (s.includes("medium") || s.includes("moderate")) return "medium";
+  if (s === "med" || s.includes("medium") || s.includes("moderate")) {
+    return "medium";
+  }
   if (s.includes("low")) return "low";
   return "info";
+}
+
+function formatSeverityLabel(severity) {
+  return normalizeSeverity(severity).toUpperCase();
 }
 
 /* --- Render results --- */
