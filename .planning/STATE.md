@@ -10,24 +10,24 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 ## Current Position
 
 Phase: 2 of 6 (Archive + YARA Fidelity)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-02 - Completed 02-archive-yara-fidelity-01-PLAN.md
+Last activity: 2026-03-02 - Completed 02-archive-yara-fidelity-02-PLAN.md
 
-Progress: [███░░░░░░░] 27%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 8.9 min
+- Total plans completed: 5
+- Average duration: 9.5 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
-| 02-archive-yara-fidelity | 1 | 7 min | 7.0 min |
+| 02-archive-yara-fidelity | 2 | 19 min | 9.5 min |
 
 ## Accumulated Context
 
@@ -43,6 +43,9 @@ Progress: [███░░░░░░░] 27%
 | 01-bytecode-evidence-core-03 | Implemented a narrow opcode state machine for `new String(new byte[]{...})` reconstruction. | Delivers explainable reconstruction while fail-closing on unknown/control-flow/exception boundaries. |
 | 02-archive-yara-fidelity-01 | Canonicalized nested archive provenance as `{root}!/{entry}!/{nested}` using a flattened recursive stream. | Gives YARA/signature/bytecode indicators stable, grep-able nested paths for ARCH-01 attribution. |
 | 02-archive-yara-fidelity-01 | Kept `ArchiveEntry.text` optional with empty-string fallback for text matchers. | Preserves binary scanning and avoids large-entry lossy text expansion while keeping existing matchers compatible. |
+| 02-archive-yara-fidelity-02 | Introduced typed `RulepackKind` selection from `JARSPECT_RULEPACKS` with default `demo`. | Keeps demo/prod corpora explicit and deterministic while preserving backward-compatible startup behavior. |
+| 02-archive-yara-fidelity-02 | Mapped YARA severity using ordered fallbacks: `meta.severity` -> `meta.threat_level` -> tags -> pack default. | Ensures severities are rule-authored when available and still deterministic when metadata is absent. |
+| 02-archive-yara-fidelity-02 | Prefixed YARA indicators with pack provenance (`YARA-DEMO-*`/`YARA-PROD-*`) and retained entry-scoped `file_path`. | Prevents demo/prod mixing in reporting and keeps YARA-01 path attribution intact. |
 
 ### Pending Todos
 
@@ -57,5 +60,5 @@ Progress: [███░░░░░░░] 27%
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 02-archive-yara-fidelity-01-PLAN.md
-Resume file: .planning/phases/02-archive-yara-fidelity/02-archive-yara-fidelity-02-PLAN.md
+Stopped at: Completed 02-archive-yara-fidelity-02-PLAN.md
+Resume file: .planning/phases/02-archive-yara-fidelity/02-archive-yara-fidelity-03-PLAN.md
