@@ -5,29 +5,29 @@
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Upload a `.jar`, get a risk verdict with explainable indicators before you install.
-**Current focus:** Phase 2 - Archive + YARA Fidelity
+**Current focus:** Phase 3 - Capability Detectors
 
 ## Current Position
 
 Phase: 2 of 6 (Archive + YARA Fidelity)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-02 - Completed 02-archive-yara-fidelity-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Phase complete
+Last activity: 2026-03-02 - Completed 02-archive-yara-fidelity-03-PLAN.md
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 9.5 min
+- Total plans completed: 6
+- Average duration: 9.3 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-bytecode-evidence-core | 3 | 28 min | 9.3 min |
-| 02-archive-yara-fidelity | 2 | 19 min | 9.5 min |
+| 02-archive-yara-fidelity | 3 | 28 min | 9.3 min |
 
 ## Accumulated Context
 
@@ -46,6 +46,9 @@ Progress: [███░░░░░░░] 33%
 | 02-archive-yara-fidelity-02 | Introduced typed `RulepackKind` selection from `JARSPECT_RULEPACKS` with default `demo`. | Keeps demo/prod corpora explicit and deterministic while preserving backward-compatible startup behavior. |
 | 02-archive-yara-fidelity-02 | Mapped YARA severity using ordered fallbacks: `meta.severity` -> `meta.threat_level` -> tags -> pack default. | Ensures severities are rule-authored when available and still deterministic when metadata is absent. |
 | 02-archive-yara-fidelity-02 | Prefixed YARA indicators with pack provenance (`YARA-DEMO-*`/`YARA-PROD-*`) and retained entry-scoped `file_path`. | Prevents demo/prod mixing in reporting and keeps YARA-01 path attribution intact. |
+| 02-archive-yara-fidelity-03 | Grouped metadata checks by jar layer using the last `!/` boundary in archive entry paths. | Keeps Fabric/Forge/Spigot integrity checks scoped to the owning jar, including nested jar layers. |
+| 02-archive-yara-fidelity-03 | Reserved `high` metadata severity for manifest instrumentation keys and kept malformed/inconsistent metadata findings in `low|med`. | Preserves conservative signal quality while still flagging clear Java agent risk attributes. |
+| 02-archive-yara-fidelity-03 | Converted metadata findings directly into `result.static.matches[]` indicators with `source=metadata` and full nested `file_path` provenance. | Makes ARCH-02 findings additive, traceable, and immediately consumable by existing scoring/behavior stages. |
 
 ### Pending Todos
 
@@ -56,9 +59,10 @@ Progress: [███░░░░░░░] 33%
 
 - `scripts/demo_run.sh` auto-start path remains sensitive to first-run compile timing; pre-starting the API with `JARSPECT_API_URL` still works reliably.
 - Nested-jar demo attribution is now deterministic across build modes, but `.class` bytecode-specific demo evidence is still absent without a committed compiled fixture.
+- Metadata demo scans may raise `META-FABRIC-ENTRYPOINT-MISSING` in zip-fallback builds when `DemoMod.class` is not present; this is expected until deterministic compiled fixtures are committed.
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 02-archive-yara-fidelity-02-PLAN.md
-Resume file: .planning/phases/02-archive-yara-fidelity/02-archive-yara-fidelity-03-PLAN.md
+Stopped at: Completed 02-archive-yara-fidelity-03-PLAN.md
+Resume file: .planning/phases/03-capability-detectors/03-capability-detectors-01-PLAN.md
