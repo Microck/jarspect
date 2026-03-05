@@ -2,18 +2,19 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use axum::extract::rejection::JsonRejection;
 use axum::extract::{DefaultBodyLimit, Multipart, Path as AxumPath, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use axum::extract::rejection::JsonRejection;
 use serde_json::Value;
 use tokio::fs;
 use tower_http::services::ServeDir;
 use tracing::info;
 use uuid::Uuid;
 
+use jarspect::verdict::AiConfig;
 use jarspect::{AppState, ScanRequest, ScanRunResponse};
 
 #[derive(Debug)]
@@ -26,6 +27,13 @@ impl AppError {
     fn bad_request(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
+            message: message.into(),
+        }
+    }
+
+    fn payload_too_large(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::PAYLOAD_TOO_LARGE,
             message: message.into(),
         }
     }
@@ -66,6 +74,8 @@ impl From<JsonRejection> for AppError {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let _ = dotenvy::dotenv();
+
     tracing_subscriber::fmt()
         .with_env_filter(
             std::env::var("RUST_LOG").unwrap_or_else(|_| "jarspect=info,tower_http=info".into()),
@@ -75,7 +85,9 @@ async fn main() -> Result<()> {
     let cwd = std::env::current_dir()?;
     let uploads_dir = cwd.join(".local-data/uploads");
     let scans_dir = cwd.join(".local-data/scans");
-    let web_dir = cwd.join("web");
+    let web_dir = std::env::var("JARSPECT_WEB_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| cwd.join("web"));
 
     fs::create_dir_all(&uploads_dir).await?;
     fs::create_dir_all(&scans_dir).await?;
@@ -89,13 +101,29 @@ async fn main() -> Result<()> {
         .collect::<Vec<_>>();
     info!(rulepacks = ?rulepack_names, "loaded signature and YARA rulepacks");
 
+    let malwarebazaar_api_key = std::env::var("MALWAREBAZAAR_API_KEY")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let ai_config = load_ai_config();
+
+    let upload_max_bytes = std::env::var("JARSPECT_UPLOAD_MAX_BYTES")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(50 * 1024 * 1024);
+    let body_max_bytes = upload_max_bytes.saturating_add(10 * 1024 * 1024);
+    info!(upload_max_bytes, body_max_bytes, "configured upload limits");
+
     let state = AppState {
         uploads_dir,
         scans_dir,
         web_dir: web_dir.clone(),
         signatures,
         yara_rulepacks,
-        upload_max_bytes: 50 * 1024 * 1024,
+        upload_max_bytes,
+        malwarebazaar_api_key,
+        ai_config,
     };
 
     let bind_addr =
@@ -108,7 +136,7 @@ async fn main() -> Result<()> {
         .route("/scan", post(scan))
         .route("/scans/{scan_id}", get(get_scan))
         .nest_service("/static", ServeDir::new(web_dir))
-        .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
+        .layer(DefaultBodyLimit::max(body_max_bytes))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
@@ -125,11 +153,38 @@ async fn index(State(state): State<AppState>) -> Result<Html<String>, AppError> 
     Ok(Html(content))
 }
 
-async fn health() -> Json<Value> {
+fn env_flag_enabled(var_name: &str, default_enabled: bool) -> bool {
+    let Ok(raw) = std::env::var(var_name) else {
+        return default_enabled;
+    };
+    let normalized = raw.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return default_enabled;
+    }
+
+    !(normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off")
+}
+
+async fn health(State(state): State<AppState>) -> Json<Value> {
+    let mut pack_names = state
+        .yara_rulepacks
+        .iter()
+        .map(|pack| pack.kind.as_str())
+        .collect::<Vec<_>>();
+    pack_names.sort();
+    pack_names.dedup();
+
     Json(serde_json::json!({
         "status": "ok",
         "service": "jarspect",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "ai_enabled": state.ai_config.is_some(),
+        "rulepacks": pack_names,
+        "signatures_loaded": state.signatures.len(),
+        "yara_rulepacks_loaded": state.yara_rulepacks.len(),
+        "malwarebazaar_hash_match_enabled": env_flag_enabled("JARSPECT_MB_HASH_MATCH_ENABLED", true),
+        "malwarebazaar_match_continue_analysis": env_flag_enabled("JARSPECT_MB_MATCH_CONTINUE_ANALYSIS", false),
+        "upload_max_bytes": state.upload_max_bytes
     }))
 }
 
@@ -154,7 +209,7 @@ async fn upload(
             .await
             .map_err(|e| AppError::bad_request(format!("Failed to read upload: {e}")))?;
         if data.len() > state.upload_max_bytes {
-            return Err(AppError::bad_request("Uploaded file exceeds max size"));
+            return Err(AppError::payload_too_large("Uploaded file exceeds max size"));
         }
         bytes = Some(data.to_vec());
         break;
@@ -194,7 +249,8 @@ async fn get_scan(
     State(state): State<AppState>,
     AxumPath(scan_id): AxumPath<String>,
 ) -> Result<Json<ScanRunResponse>, AppError> {
-    jarspect::validate_artifact_id(&scan_id).map_err(|error| AppError::bad_request(error.to_string()))?;
+    jarspect::validate_artifact_id(&scan_id)
+        .map_err(|error| AppError::bad_request(error.to_string()))?;
 
     let path: PathBuf = state.scans_dir.join(format!("{scan_id}.json"));
     if !path.exists() {
@@ -220,4 +276,43 @@ fn map_scan_error(error: anyhow::Error) -> AppError {
     }
 
     AppError::internal(message)
+}
+
+fn load_ai_config() -> Option<AiConfig> {
+    if let Ok(raw) = std::env::var("JARSPECT_AI_ENABLED") {
+        let normalized = raw.trim().to_ascii_lowercase();
+        if matches!(normalized.as_str(), "0" | "false" | "no" | "off") {
+            return None;
+        }
+    }
+
+    let endpoint = std::env::var("AZURE_OPENAI_ENDPOINT")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())?;
+    let api_key = std::env::var("AZURE_OPENAI_API_KEY")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())?;
+    let deployment = std::env::var("AZURE_OPENAI_DEPLOYMENT")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let api_version = std::env::var("AZURE_OPENAI_API_VERSION")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "2024-10-21".to_string());
+
+    if deployment.is_none() {
+        return None;
+    }
+
+    Some(AiConfig {
+        endpoint,
+        api_key,
+        deployment,
+        api_version,
+        model: None,
+    })
 }

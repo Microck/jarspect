@@ -10,50 +10,64 @@ use super::DetectorFinding;
 
 const DETECTOR_ID: &str = "DETC-08.CREDENTIAL_THEFT";
 const CREDENTIAL_TOKEN_MARKERS: &[&str] = &[
-    "discord",
+    // High-signal browser/app credential artifacts.
+    "login data",
+    "web data",
+    "logins.json",
+    "key4.db",
+    "cookies.sqlite",
+    // Token stores (keep these broad, but validate before firing).
     "local storage",
     "leveldb",
-    "token",
-    "login data",
+    // Very generic; can appear in HTTP libraries. Treat as weak unless path/context is present.
     "cookies",
-    "local state",
-    "user data",
-    "default",
-    ".minecraft",
-    "launcher_profiles.json",
-    "accounts.json",
-    "session",
 ];
 const CREDENTIAL_PATH_MARKERS: &[&str] = &[
+    "login data",
+    "web data",
+    "logins.json",
+    "key4.db",
+    "cookies.sqlite",
     "local storage",
     "leveldb",
-    "login data",
-    "cookies",
-    "local state",
-    "user data",
-    "default",
-    ".minecraft",
-    "launcher_profiles.json",
-    "accounts.json",
+    "network/cookies",
+    "network\\cookies",
 ];
 
+#[derive(Default)]
+struct TokenEvidence {
+    locations: Vec<Location>,
+    values: BTreeSet<String>,
+}
+
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
-    let mut token_classes: BTreeMap<(String, String), Vec<Location>> = BTreeMap::new();
-    let mut token_values = BTreeSet::new();
+    let mut token_classes: BTreeMap<(String, String), TokenEvidence> = BTreeMap::new();
 
     for string_hit in index.all_strings() {
         if !contains_any_token(&string_hit.value, CREDENTIAL_TOKEN_MARKERS) {
             continue;
         }
 
-        token_classes
+        let evidence = token_classes
             .entry(class_key(&string_hit.location))
-            .or_default()
-            .push(string_hit.location.clone());
-        token_values.insert(string_hit.value.clone());
+            .or_default();
+        evidence.locations.push(string_hit.location.clone());
+        evidence.values.insert(string_hit.value.clone());
     }
 
     if token_classes.is_empty() {
+        return Vec::new();
+    }
+
+    let strong_token_classes = token_classes
+        .iter()
+        .filter(|(_, evidence)| has_strong_credential_marker(&evidence.values))
+        .map(|(key, _)| key.clone())
+        .collect::<BTreeSet<_>>();
+
+    // If we don't see strong local credential-store markers in any class, don't fire.
+    // This avoids false positives from HTTP cookie parsing libraries, etc.
+    if strong_token_classes.is_empty() {
         return Vec::new();
     }
 
@@ -75,9 +89,10 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
         ),
     ];
 
-    let mut evidence_locations = token_classes
-        .values()
-        .flat_map(|locations| locations.iter().cloned())
+    let mut evidence_locations = strong_token_classes
+        .iter()
+        .filter_map(|key| token_classes.get(key))
+        .flat_map(|evidence| evidence.locations.iter().cloned())
         .collect::<Vec<_>>();
 
     let mut correlated_read_classes = BTreeSet::new();
@@ -93,7 +108,7 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
 
         if collect_correlated_hits(
             hits,
-            &token_classes,
+            &strong_token_classes,
             &mut evidence_locations,
             &mut correlated_read_classes,
         ) {
@@ -109,7 +124,7 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
 
         if collect_correlated_hits(
             hits,
-            &token_classes,
+            &strong_token_classes,
             &mut evidence_locations,
             &mut correlated_network_classes,
         ) {
@@ -119,12 +134,15 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
 
     let has_correlated_read = !correlated_read_classes.is_empty();
     let has_correlated_network = !correlated_network_classes.is_empty();
+
     let severity = if has_correlated_read && has_correlated_network {
         "high"
     } else if has_correlated_read {
         "med"
-    } else {
+    } else if has_correlated_network {
         "low"
+    } else {
+        return Vec::new();
     };
 
     let rationale = if severity == "high" {
@@ -148,14 +166,31 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
                 .join(", ")
         )
     } else {
-        "Matched credential/token markers without same-class file-read correlation.".to_string()
+        "Matched strong credential/token markers with same-class network correlation, but no file-read primitive in the same class."
+            .to_string()
     };
 
     let extracted_file_paths = matching_token_strings(
-        token_values.iter().map(|value| value.as_str()),
+        strong_token_classes
+            .iter()
+            .filter_map(|key| token_classes.get(key))
+            .flat_map(|evidence| evidence.values.iter().map(|value| value.as_str())),
         CREDENTIAL_PATH_MARKERS,
     );
-    let extracted_urls = extract_urls(index.all_strings().map(|hit| hit.value.as_str()));
+    let mut extracted_url_set = BTreeSet::new();
+    for (entry_path, class_name) in token_classes.keys() {
+        if !strong_token_classes.contains(&(entry_path.clone(), class_name.clone())) {
+            continue;
+        }
+        let strings = index
+            .strings_in_class(entry_path, class_name)
+            .iter()
+            .map(|hit| hit.value.as_str());
+        for url in extract_urls(strings) {
+            extracted_url_set.insert(url);
+        }
+    }
+    let extracted_urls = extracted_url_set.into_iter().collect::<Vec<_>>();
 
     vec![DetectorFinding {
         id: DETECTOR_ID.to_string(),
@@ -170,9 +205,57 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     }]
 }
 
+fn has_strong_credential_marker(token_values: &BTreeSet<String>) -> bool {
+    for value in token_values {
+        let normalized = value.to_ascii_lowercase();
+
+        // Strong local credential-store file names (common in stealers).
+        if contains_any_token(
+            &normalized,
+            &[
+                "login data",
+                "web data",
+                "logins.json",
+                "key4.db",
+                "cookies.sqlite",
+            ],
+        ) {
+            return true;
+        }
+
+        // Token stores are strong only when the LevelDB context is explicit.
+        if normalized.contains("local storage") && normalized.contains("leveldb") {
+            return true;
+        }
+
+        // "cookies" is extremely generic (HTTP parsing, etc). Only treat it as strong
+        // when it looks like a browser cookie database path.
+        if normalized.contains("cookies")
+            && (normalized.contains("network/cookies")
+                || normalized.contains("network\\cookies")
+                || normalized.contains("default/network/cookies")
+                || normalized.contains("default\\network\\cookies")
+                || normalized.contains("default/cookies")
+                || normalized.contains("default\\cookies")
+                || (normalized.contains("/cookies") || normalized.contains("\\cookies"))
+                    && (normalized.contains("user data")
+                        || normalized.contains("appdata")
+                        || normalized.contains("mozilla")
+                        || normalized.contains("chrome")
+                        || normalized.contains("edge")
+                        || normalized.contains("firefox")
+                        || normalized.contains("profile")))
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
 fn collect_correlated_hits(
     hits: &[InvokeHit],
-    token_classes: &BTreeMap<(String, String), Vec<Location>>,
+    allowed_classes: &BTreeSet<(String, String)>,
     evidence_locations: &mut Vec<Location>,
     correlated_classes: &mut BTreeSet<(String, String)>,
 ) -> bool {
@@ -180,7 +263,7 @@ fn collect_correlated_hits(
 
     for hit in hits {
         let key = class_key(&hit.location);
-        if !token_classes.contains_key(&key) {
+        if !allowed_classes.contains(&key) {
             continue;
         }
 
@@ -255,19 +338,14 @@ mod tests {
         let index = EvidenceIndex::new(&evidence);
         let findings = detect(&index);
 
-        assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].severity, "low");
+        assert!(findings.is_empty());
     }
 
     #[test]
     fn token_plus_file_read_escalates_to_med() {
         let evidence = BytecodeEvidence {
             items: vec![
-                string(
-                    ".minecraft/launcher_profiles.json",
-                    "sample.jar!/Steal.class",
-                    "Steal",
-                ),
+                string("Login Data", "sample.jar!/Steal.class", "Steal"),
                 invoke(
                     "java/nio/file/Files",
                     "readAllBytes",
@@ -282,10 +360,7 @@ mod tests {
 
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, "med");
-        assert_eq!(
-            findings[0].extracted_file_paths,
-            vec![".minecraft/launcher_profiles.json"]
-        );
+        assert_eq!(findings[0].extracted_file_paths, vec!["Login Data"]);
         assert!(has_invoke_callsite(&findings[0]));
     }
 
@@ -314,7 +389,7 @@ mod tests {
     fn token_plus_file_read_plus_network_escalates_to_high() {
         let evidence = BytecodeEvidence {
             items: vec![
-                string("Cookies", "sample.jar!/Steal.class", "Steal"),
+                string("Login Data", "sample.jar!/Steal.class", "Steal"),
                 string(
                     "upload to https://example.invalid/collector",
                     "sample.jar!/Steal.class",
@@ -345,5 +420,141 @@ mod tests {
             vec!["https://example.invalid/collector"]
         );
         assert!(has_invoke_callsite(&findings[0]));
+    }
+
+    #[test]
+    fn cookies_without_browser_path_does_not_trigger() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                string("Cookies", "sample.jar!/Jetty.class", "Jetty"),
+                invoke(
+                    "java/io/FileInputStream",
+                    "<init>",
+                    "sample.jar!/Jetty.class",
+                    "Jetty",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn cookie_db_path_with_file_read_triggers() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                string(
+                    "Default/Network/Cookies",
+                    "sample.jar!/Steal.class",
+                    "Steal",
+                ),
+                invoke(
+                    "java/io/FileInputStream",
+                    "<init>",
+                    "sample.jar!/Steal.class",
+                    "Steal",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, "med");
+        assert_eq!(
+            findings[0].extracted_file_paths,
+            vec!["Default/Network/Cookies"]
+        );
+        assert!(has_invoke_callsite(&findings[0]));
+    }
+
+    #[test]
+    fn local_state_does_not_trigger() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                string(
+                    "Local State",
+                    "sample.jar!/MaybeLauncher.class",
+                    "MaybeLauncher",
+                ),
+                invoke(
+                    "java/io/FileInputStream",
+                    "<init>",
+                    "sample.jar!/MaybeLauncher.class",
+                    "MaybeLauncher",
+                ),
+                invoke(
+                    "java/net/URL",
+                    "openConnection",
+                    "sample.jar!/MaybeLauncher.class",
+                    "MaybeLauncher",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn user_data_does_not_trigger() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                string("User Data", "sample.jar!/Steal.class", "Steal"),
+                invoke(
+                    "java/io/FileInputStream",
+                    "<init>",
+                    "sample.jar!/Steal.class",
+                    "Steal",
+                ),
+                invoke(
+                    "java/net/URLConnection",
+                    "connect",
+                    "sample.jar!/Steal.class",
+                    "Steal",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn launcher_profiles_json_does_not_trigger() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                string(
+                    ".minecraft/launcher_profiles.json",
+                    "sample.jar!/MaybeLauncher.class",
+                    "MaybeLauncher",
+                ),
+                invoke(
+                    "java/io/FileInputStream",
+                    "<init>",
+                    "sample.jar!/MaybeLauncher.class",
+                    "MaybeLauncher",
+                ),
+                invoke(
+                    "java/net/URLConnection",
+                    "connect",
+                    "sample.jar!/MaybeLauncher.class",
+                    "MaybeLauncher",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert!(findings.is_empty());
     }
 }

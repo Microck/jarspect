@@ -2,14 +2,17 @@ use std::collections::HashMap;
 
 use crate::analysis::{ArchiveEntry, BytecodeEvidence, Location};
 
+pub mod capability_base64_stager;
 pub mod capability_cred_theft;
 pub mod capability_deser;
+pub mod capability_discord_webhook;
 pub mod capability_dynamic_load;
 pub mod capability_exec;
 pub mod capability_fs_modify;
 pub mod capability_native;
 pub mod capability_network;
 pub mod capability_persistence;
+pub mod capability_remote_code_load;
 pub mod index;
 pub mod spec;
 
@@ -34,7 +37,10 @@ pub fn run_capability_detectors(
     let mut findings = Vec::new();
     findings.extend(capability_exec::detect(&index));
     findings.extend(capability_network::detect(&index));
+    findings.extend(capability_discord_webhook::detect(&index));
+    findings.extend(capability_remote_code_load::detect(&index));
     findings.extend(capability_dynamic_load::detect(&index));
+    findings.extend(capability_base64_stager::detect(&index));
     findings.extend(capability_fs_modify::detect(&index));
     findings.extend(capability_persistence::detect(&index));
     findings.extend(capability_deser::detect(&index));

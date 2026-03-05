@@ -1,18 +1,18 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use tokio::fs;
-use uuid::Uuid;
 use yara_x::Compiler;
 
 pub mod analysis;
-pub mod behavior;
 pub mod detectors;
-pub mod scoring;
+pub mod malwarebazaar;
+pub mod profile;
+pub mod scan;
+pub mod verdict;
 
 pub use analysis::ArchiveEntry;
 
@@ -24,11 +24,14 @@ pub struct AppState {
     pub signatures: Arc<Vec<SignatureDefinition>>,
     pub yara_rulepacks: Arc<Vec<analysis::YaraRulepack>>,
     pub upload_max_bytes: usize,
+    pub malwarebazaar_api_key: Option<String>,
+    pub ai_config: Option<verdict::AiConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ScanRequest {
     pub upload_id: String,
+    #[serde(default)]
     pub author: Option<AuthorMetadata>,
 }
 
@@ -43,90 +46,72 @@ pub struct AuthorMetadata {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScanRunResponse {
-    scan_id: String,
-    result: ScanResult,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ScanResult {
-    intake: IntakeResult,
-    #[serde(rename = "static")]
-    static_findings: StaticFindings,
-    behavior: BehaviorPrediction,
-    reputation: Option<ReputationResult>,
+    pub scan_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    bytecode_evidence: Option<analysis::BytecodeEvidence>,
-    verdict: Verdict,
+    pub sha256: Option<String>,
+    pub verdict: Verdict,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub malwarebazaar: Option<malwarebazaar::MalwareBazaarResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub static_findings: Option<StaticFindings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<BTreeMap<String, profile::CapabilitySignal>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub yara_hits: Option<Vec<profile::YaraHit>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<profile::ModMetadata>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<profile::CapabilityProfile>,
+    pub intake: IntakeResult,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IntakeResult {
-    upload_id: String,
-    storage_path: String,
-    file_count: usize,
-    class_file_count: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct StaticFindings {
-    matches: Vec<Indicator>,
-    counts_by_category: HashMap<String, usize>,
-    counts_by_severity: HashMap<String, usize>,
-    matched_pattern_ids: Vec<String>,
-    matched_signature_ids: Vec<String>,
-    analyzed_files: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct BehaviorPrediction {
-    predicted_network_urls: Vec<String>,
-    #[serde(default)]
-    predicted_commands: Vec<String>,
-    predicted_file_writes: Vec<String>,
-    predicted_persistence: Vec<String>,
-    #[serde(default)]
-    predictions: Vec<behavior::PredictedBehavior>,
-    confidence: f64,
-    indicators: Vec<Indicator>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ReputationResult {
-    author_id: String,
-    author_score: f64,
-    account_age_days: u32,
-    prior_mod_count: u32,
-    report_count: u32,
-    indicators: Vec<Indicator>,
+    pub upload_id: String,
+    pub storage_path: String,
+    pub file_count: usize,
+    pub class_file_count: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Verdict {
-    risk_tier: String,
-    risk_score: u8,
-    summary: String,
-    explanation: String,
-    indicators: Vec<Indicator>,
+    pub result: String,
+    pub confidence: f64,
+    pub risk_score: u8,
+    pub method: String,
+    pub explanation: String,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub capabilities_assessment: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct StaticFindings {
+    pub matches: Vec<Indicator>,
+    pub counts_by_category: HashMap<String, usize>,
+    pub counts_by_severity: HashMap<String, usize>,
+    pub matched_pattern_ids: Vec<String>,
+    pub matched_signature_ids: Vec<String>,
+    pub analyzed_files: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Indicator {
-    source: String,
-    id: String,
-    title: String,
-    category: String,
-    severity: String,
-    file_path: Option<String>,
-    evidence: String,
-    rationale: String,
+    pub source: String,
+    pub id: String,
+    pub title: String,
+    pub category: String,
+    pub severity: String,
+    pub file_path: Option<String>,
+    pub evidence: String,
+    pub rationale: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    evidence_locations: Option<Vec<analysis::Location>>,
+    pub evidence_locations: Option<Vec<analysis::Location>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    extracted_urls: Option<Vec<String>>,
+    pub extracted_urls: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    extracted_commands: Option<Vec<String>>,
+    pub extracted_commands: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    extracted_file_paths: Option<Vec<String>>,
+    pub extracted_file_paths: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -143,77 +128,7 @@ pub async fn run_scan(
     request: ScanRequest,
     scan_id_override: Option<&str>,
 ) -> Result<ScanRunResponse> {
-    validate_artifact_id(&request.upload_id)?;
-    let upload_path = state.uploads_dir.join(format!("{}.jar", request.upload_id));
-    if !upload_path.exists() {
-        anyhow::bail!("Upload not found")
-    }
-
-    let bytes = fs::read(&upload_path)
-        .await
-        .with_context(|| format!("Failed to read upload: {}", upload_path.display()))?;
-    let root_label = format!("{}.jar", request.upload_id);
-    let entries = analysis::read_archive_entries_recursive(root_label.as_str(), &bytes)?;
-
-    let intake = IntakeResult {
-        upload_id: request.upload_id.clone(),
-        storage_path: upload_path.to_string_lossy().into_owned(),
-        file_count: entries.len(),
-        class_file_count: entries
-            .iter()
-            .filter(|entry| entry.path.ends_with(".class"))
-            .count(),
-    };
-
-    let bytecode_evidence = Some(analysis::extract_bytecode_evidence(&entries));
-    let static_findings = run_static_analysis(
-        &entries,
-        bytecode_evidence.as_ref(),
-        &state.signatures,
-        &state.yara_rulepacks,
-    )?;
-    let derived_behavior = behavior::derive_behavior(&static_findings.matches);
-    let behavior = BehaviorPrediction {
-        predicted_network_urls: derived_behavior.predicted_network_urls,
-        predicted_commands: derived_behavior.predicted_commands,
-        predicted_file_writes: derived_behavior.predicted_file_writes,
-        predicted_persistence: derived_behavior.predicted_persistence,
-        predictions: derived_behavior.predictions,
-        confidence: derived_behavior.confidence,
-        indicators: vec![],
-    };
-    let reputation = request.author.as_ref().map(score_author);
-    let verdict = build_verdict(&static_findings.matches, reputation.as_ref());
-
-    let result = ScanResult {
-        intake,
-        static_findings,
-        behavior,
-        reputation,
-        bytecode_evidence,
-        verdict,
-    };
-
-    let scan_id = if let Some(scan_id) = scan_id_override {
-        validate_artifact_id(scan_id)?;
-        scan_id.to_string()
-    } else {
-        Uuid::new_v4().simple().to_string()
-    };
-
-    let scan_payload = ScanRunResponse {
-        scan_id: scan_id.clone(),
-        result,
-    };
-
-    let path = state.scans_dir.join(format!("{scan_id}.json"));
-    let payload_bytes = serde_json::to_vec_pretty(&scan_payload)
-        .context("Failed to serialize scan result")?;
-    fs::write(&path, payload_bytes)
-        .await
-        .with_context(|| format!("Failed to persist scan result: {}", path.display()))?;
-
-    Ok(scan_payload)
+    scan::run_scan(state, request, scan_id_override).await
 }
 
 pub fn run_static_analysis(
@@ -250,7 +165,7 @@ pub fn run_static_analysis(
             "Runtime process execution",
             "execution",
             "high",
-            Regex::new(r"Runtime\.getRuntime\(\)\.exec").unwrap(),
+            Regex::new(r"Runtime\.getRuntime\(\)\.exec").expect("valid regex"),
             "Detected process execution primitive commonly used in malware droppers.",
         ),
         (
@@ -258,15 +173,43 @@ pub fn run_static_analysis(
             "Outbound URL pattern",
             "network",
             "low",
-            Regex::new(r"https?://[A-Za-z0-9._/-]+\.[A-Za-z]{2,}").unwrap(),
+            Regex::new(r"https?://[A-Za-z0-9._/-]+\.[A-Za-z]{2,}").expect("valid regex"),
             "Found hardcoded network URL in archive payload.",
+        ),
+        (
+            "NET-DISCORD-WEBHOOK",
+            "Discord webhook endpoint",
+            "network",
+            "high",
+            Regex::new(
+                r"(?i)https?://(?:ptb\.|canary\.)?discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+",
+            )
+            .expect("valid regex"),
+            "Found a Discord webhook URL. Embedded webhooks are commonly used for exfiltration.",
+        ),
+        (
+            "NET-PASTEBIN-RAW",
+            "Pastebin raw endpoint",
+            "network",
+            "med",
+            Regex::new(r"(?i)https?://(?:www\.)?pastebin\.com/(?:raw/|raw\.php\?i=)[A-Za-z0-9]+").expect("valid regex"),
+            "Found a Pastebin raw URL, often used for staged payload delivery.",
+        ),
+        (
+            "NET-RAW-GITHUB",
+            "Raw GitHub content endpoint",
+            "network",
+            "med",
+            Regex::new(r#"(?i)https?://raw\.githubusercontent\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/[^\s\"'<>]+"#)
+                .expect("valid regex"),
+            "Found a raw.githubusercontent.com URL, commonly used for staged payload hosting.",
         ),
         (
             "OBF-BASE64",
             "Long base64 blob",
             "obfuscation",
             "med",
-            Regex::new(r"[A-Za-z0-9+/]{100,}={0,2}").unwrap(),
+            Regex::new(r"[A-Za-z0-9+/]{100,}={0,2}").expect("valid regex"),
             "Found long base64-like payload that can hide staged commands.",
         ),
         (
@@ -274,7 +217,7 @@ pub fn run_static_analysis(
             "Reflection usage",
             "obfuscation",
             "med",
-            Regex::new(r"Class\.forName").unwrap(),
+            Regex::new(r"Class\.forName").expect("valid regex"),
             "Found reflective class loading token.",
         ),
     ];
@@ -285,6 +228,14 @@ pub fn run_static_analysis(
         for (id, title, category, severity, regex, rationale) in &patterns {
             if let Some(found) = regex.find(entry_text) {
                 matched_pattern_ids.push((*id).to_string());
+
+                let evidence = snippet(entry_text, found.start(), found.end());
+                let extracted_urls = match *id {
+                    "NET-DISCORD-WEBHOOK" | "NET-PASTEBIN-RAW" | "NET-RAW-GITHUB" => {
+                        detectors::spec::extract_urls(std::iter::once(evidence.as_str()))
+                    }
+                    _ => Vec::new(),
+                };
                 matches.push(Indicator {
                     source: "pattern".to_string(),
                     id: (*id).to_string(),
@@ -292,10 +243,10 @@ pub fn run_static_analysis(
                     category: (*category).to_string(),
                     severity: (*severity).to_string(),
                     file_path: Some(entry.path.clone()),
-                    evidence: snippet(entry_text, found.start(), found.end()),
+                    evidence,
                     rationale: (*rationale).to_string(),
                     evidence_locations: None,
-                    extracted_urls: None,
+                    extracted_urls: to_optional_vec(extracted_urls),
                     extracted_commands: None,
                     extracted_file_paths: None,
                 });
@@ -410,80 +361,17 @@ pub fn run_static_analysis(
     })
 }
 
-pub fn score_author(author: &AuthorMetadata) -> ReputationResult {
-    let age = author.account_age_days.unwrap_or(14);
-    let prior_mods = author.prior_mod_count.unwrap_or(1);
-    let reports = author.report_count.unwrap_or(0);
-    let mod_id = author
-        .mod_id
-        .clone()
-        .unwrap_or_else(|| "unknown-mod".to_string());
-
-    let age_component = (age as f64 / 365.0).min(1.0) * 0.4;
-    let output_component = (prior_mods as f64 / 20.0).min(1.0) * 0.3;
-    let report_penalty = (reports as f64 / 10.0).min(1.0) * 0.5;
-    let score = (age_component + output_component - report_penalty).clamp(0.0, 1.0);
-
-    let mut indicators = Vec::new();
-    if score < 0.35 {
-        indicators.push(Indicator {
-            source: "reputation".to_string(),
-            id: "REP-AUTHOR-TRUST".to_string(),
-            title: "Author trust score".to_string(),
-            category: "reputation".to_string(),
-            severity: "critical".to_string(),
-            file_path: None,
-            evidence: format!(
-                "author_score={score:.3}; account_age_days={age}; prior_mod_count={prior_mods}; report_count={reports}; mod_id={mod_id}"
-            ),
-            rationale: "Low-author-history profile with report activity increases risk.".to_string(),
-            evidence_locations: None,
-            extracted_urls: None,
-            extracted_commands: None,
-            extracted_file_paths: None,
-        });
-    }
-
-    ReputationResult {
-        author_id: author.author_id.clone(),
-        author_score: score,
-        account_age_days: age,
-        prior_mod_count: prior_mods,
-        report_count: reports,
-        indicators,
-    }
-}
-
-pub fn build_verdict(static_indicators: &[Indicator], reputation: Option<&ReputationResult>) -> Verdict {
-    let scored = scoring::score_static_indicators(static_indicators, reputation);
-
-    let mut verdict_indicators = static_indicators.to_vec();
-    if let Some(rep) = reputation {
-        verdict_indicators.extend_from_slice(&rep.indicators);
-    }
-
-    let reputation_fragment = if reputation.is_some() {
-        " and reputation"
-    } else {
-        ""
-    };
-    let summary = format!(
-        "Jarspect assessed this mod as {} risk ({}/100) from static capability{} evidence.",
-        scored.risk_tier, scored.risk_score, reputation_fragment
-    );
-
-    Verdict {
-        risk_tier: scored.risk_tier,
-        risk_score: scored.risk_score as u8,
-        summary,
-        explanation: scored.explanation.join("\n"),
-        indicators: verdict_indicators,
-    }
-}
-
 fn snippet(text: &str, start: usize, end: usize) -> String {
-    let left = start.saturating_sub(80);
-    let right = (end + 80).min(text.len());
+    let mut left = start.saturating_sub(80).min(text.len());
+    while left > 0 && !text.is_char_boundary(left) {
+        left -= 1;
+    }
+
+    let mut right = end.saturating_add(80).min(text.len());
+    while right < text.len() && !text.is_char_boundary(right) {
+        right += 1;
+    }
+
     text[left..right].trim().to_string()
 }
 
@@ -548,7 +436,10 @@ fn yara_path_for_pack(cwd: &Path, pack: &str) -> PathBuf {
     cwd.join("data/signatures").join(pack).join("rules.yar")
 }
 
-pub fn load_signatures(cwd: &Path, packs: &[analysis::RulepackKind]) -> Result<Vec<SignatureDefinition>> {
+pub fn load_signatures(
+    cwd: &Path,
+    packs: &[analysis::RulepackKind],
+) -> Result<Vec<SignatureDefinition>> {
     let mut signatures = Vec::new();
 
     for pack in packs {
@@ -563,7 +454,10 @@ pub fn load_signatures(cwd: &Path, packs: &[analysis::RulepackKind]) -> Result<V
     Ok(signatures)
 }
 
-pub fn load_yara_rules(cwd: &Path, packs: &[analysis::RulepackKind]) -> Result<Vec<analysis::YaraRulepack>> {
+pub fn load_yara_rules(
+    cwd: &Path,
+    packs: &[analysis::RulepackKind],
+) -> Result<Vec<analysis::YaraRulepack>> {
     let mut loaded_rulepacks = Vec::new();
 
     for pack in packs {
@@ -589,162 +483,4 @@ pub fn validate_artifact_id(value: &str) -> Result<()> {
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    fn base_scan_result_json() -> serde_json::Value {
-        json!({
-            "intake": {
-                "upload_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "storage_path": ".local-data/uploads/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jar",
-                "file_count": 2,
-                "class_file_count": 1
-            },
-            "static": {
-                "matches": [],
-                "counts_by_category": {},
-                "counts_by_severity": {},
-                "matched_pattern_ids": [],
-                "matched_signature_ids": [],
-                "analyzed_files": 2
-            },
-            "behavior": {
-                "predicted_network_urls": [],
-                "predicted_commands": [],
-                "predicted_file_writes": [],
-                "predicted_persistence": [],
-                "predictions": [],
-                "confidence": 0.42,
-                "indicators": []
-            },
-            "reputation": null,
-            "verdict": {
-                "risk_tier": "LOW",
-                "risk_score": 7,
-                "summary": "safe-ish",
-                "explanation": "explanation",
-                "indicators": []
-            }
-        })
-    }
-
-    #[test]
-    fn scan_run_response_deserializes_with_bytecode_evidence() {
-        let mut payload = json!({
-            "scan_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            "result": base_scan_result_json()
-        });
-
-        payload["result"]["bytecode_evidence"] = json!({
-            "items": [
-                {
-                    "kind": "cp_utf8",
-                    "value": "java/lang/String",
-                    "location": {
-                        "entry_path": "com/example/Agent.class",
-                        "class_name": "com/example/Agent",
-                        "method": {
-                            "name": "run",
-                            "descriptor": "()V"
-                        },
-                        "pc": null
-                    }
-                }
-            ]
-        });
-
-        let serialized = serde_json::to_string(&payload).expect("failed to serialize test payload");
-        let parsed = serde_json::from_str::<ScanRunResponse>(&serialized)
-            .expect("expected payload with bytecode_evidence to deserialize");
-
-        let evidence = parsed
-            .result
-            .bytecode_evidence
-            .expect("expected bytecode_evidence to be present");
-        assert_eq!(evidence.items.len(), 1);
-
-        let analysis::BytecodeEvidenceItem::CpUtf8 { location, .. } = &evidence.items[0] else {
-            panic!("expected cp_utf8 variant")
-        };
-        let method = location.method.as_ref().expect("expected method metadata");
-        assert_eq!(method.name, "run");
-        assert_eq!(method.descriptor, "()V");
-    }
-
-    #[test]
-    fn scan_run_response_deserializes_without_bytecode_evidence() {
-        let payload = json!({
-            "scan_id": "cccccccccccccccccccccccccccccccc",
-            "result": base_scan_result_json()
-        });
-
-        let serialized = serde_json::to_string(&payload).expect("failed to serialize test payload");
-        let parsed = serde_json::from_str::<ScanRunResponse>(&serialized)
-            .expect("expected payload without bytecode_evidence to deserialize");
-
-        assert!(parsed.result.bytecode_evidence.is_none());
-    }
-
-    #[test]
-    fn verdict_ignores_behavior_prediction_outputs() {
-        let static_indicators = vec![Indicator {
-            source: "detector".to_string(),
-            id: "DETC-02.NETWORK_IO".to_string(),
-            title: "Network primitive".to_string(),
-            category: "capability".to_string(),
-            severity: "high".to_string(),
-            file_path: Some("DemoMod.class".to_string()),
-            evidence: "URLConnection.connect".to_string(),
-            rationale: "Outbound networking primitive detected.".to_string(),
-            evidence_locations: None,
-            extracted_urls: Some(vec!["https://example.com/c2".to_string()]),
-            extracted_commands: None,
-            extracted_file_paths: None,
-        }];
-
-        let empty_behavior = BehaviorPrediction {
-            predicted_network_urls: vec![],
-            predicted_commands: vec![],
-            predicted_file_writes: vec![],
-            predicted_persistence: vec![],
-            predictions: vec![],
-            confidence: 0.0,
-            indicators: vec![],
-        };
-        let populated_behavior = BehaviorPrediction {
-            predicted_network_urls: vec!["https://evil.example/c2".to_string()],
-            predicted_commands: vec!["powershell -enc AAAA".to_string()],
-            predicted_file_writes: vec!["mods/cache.bin".to_string()],
-            predicted_persistence: vec!["schtasks".to_string()],
-            predictions: vec![behavior::PredictedBehavior {
-                kind: "network_url".to_string(),
-                value: "https://evil.example/c2".to_string(),
-                confidence: 0.9,
-                supporting_indicator_ids: vec!["DETC-02.NETWORK_IO".to_string()],
-                rationale: "Derived from extracted indicator fields; supporting indicators: DETC-02.NETWORK_IO."
-                    .to_string(),
-            }],
-            confidence: 0.9,
-            indicators: vec![],
-        };
-
-        assert_ne!(
-            empty_behavior.predicted_network_urls,
-            populated_behavior.predicted_network_urls
-        );
-
-        let score_for_context = |behavior_prediction: &BehaviorPrediction| {
-            let _ = behavior_prediction;
-            build_verdict(&static_indicators, None).risk_score
-        };
-
-        assert_eq!(
-            score_for_context(&empty_behavior),
-            score_for_context(&populated_behavior)
-        );
-    }
 }

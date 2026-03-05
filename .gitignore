@@ -25,6 +25,7 @@ env/
 dist/
 build/
 target/
+target-opencode/
 
 # Environment files (never commit secrets)
 .env
@@ -53,6 +54,9 @@ demo/.build/
 demo/suspicious_sample.jar
 .local-data/
 
+# Corpus data (benign jars are large, malware must not be distributed)
+corpus/
+
 # Logs
 *.log
 server.log
@@ -67,3 +71,7 @@ local.settings.json
 
 # opensrc - source code for packages
 opensrc/
+
+# Local working notes (agent loops, rework scratchpad)
+*.local.md
+REWORK.md

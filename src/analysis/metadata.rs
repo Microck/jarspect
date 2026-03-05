@@ -230,15 +230,7 @@ fn analyze_fabric_metadata(
             "entrypoints field is present but not an object".to_string(),
             "Entrypoints should be an object keyed by environment (main/client/server).",
         ),
-        None => push_finding(
-            findings,
-            "META-FABRIC-ENTRYPOINT-INVALID",
-            "Fabric entrypoints block is missing",
-            "low",
-            entry.path.as_str(),
-            "entrypoints field is missing".to_string(),
-            "Missing entrypoint metadata reduces confidence in declared runtime behavior.",
-        ),
+        None => {}
     }
 
     if let Some(jars) = parsed.get("jars").and_then(JsonValue::as_array) {

@@ -38,14 +38,19 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut extracted_commands = BTreeSet::new();
     for (entry_path, class_name) in &touched_classes {
         for string_hit in index.strings_in_class(entry_path, class_name) {
-            if contains_any_token(&string_hit.value, COMMAND_TOKENS) {
+            if is_command_like_string(string_hit.value.as_str())
+                && contains_any_token(&string_hit.value, COMMAND_TOKENS)
+            {
                 extracted_commands.insert(string_hit.value.clone());
             }
         }
     }
 
+    // Process execution is uncommon in typical mods, but it does appear in benign cases
+    // (e.g. environment probing). Treat the primitive alone as low-signal and only
+    // escalate when correlated command-like strings are present.
     let severity = if extracted_commands.is_empty() {
-        "med"
+        "low"
     } else {
         "high"
     };
@@ -87,6 +92,59 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
         extracted_commands: extracted_commands.into_iter().collect(),
         extracted_file_paths,
     }]
+}
+
+fn is_command_like_string(value: &str) -> bool {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    // Avoid treating arbitrary long strings / descriptors as command lines.
+    if trimmed.len() > 240 {
+        return false;
+    }
+
+    // Filter Java type descriptors / internal class names that frequently contain tokens (e.g. "PowerShellUtils").
+    let looks_like_descriptor = (trimmed.starts_with('L') && trimmed.ends_with(';'))
+        || (trimmed.contains('(') && trimmed.contains(')'))
+        || (trimmed.contains('/')
+            && !trimmed.contains(' ')
+            && !trimmed.eq_ignore_ascii_case("/bin/sh")
+            && !trimmed.to_ascii_lowercase().contains("/bin/sh "));
+    if looks_like_descriptor {
+        return false;
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+
+    // PowerShell: require evidence of an actual invocation (flags / args), not just the word.
+    if lower.contains("powershell") {
+        return lower.contains(" -")
+            || lower.contains("/c")
+            || lower.contains("-enc")
+            || lower.contains("-command")
+            || lower.contains("-executionpolicy")
+            || lower.contains("-nop")
+            || lower.contains("-noprofile");
+    }
+
+    // cmd.exe: require /c or /k.
+    if lower.contains("cmd.exe") {
+        return lower.contains("/c") || lower.contains("/k");
+    }
+
+    // /bin/sh: require evidence of an invocation.
+    if lower.contains("/bin/sh") {
+        return lower.contains(" -c") || lower.ends_with("/bin/sh") || lower.contains("/bin/sh ");
+    }
+
+    // curl / wget: require at least a URL or flags.
+    if lower.contains("curl") || lower.contains("wget") {
+        return lower.contains("http://") || lower.contains("https://") || lower.contains(" -");
+    }
+
+    false
 }
 
 fn collect_hits(
@@ -146,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn primitive_without_correlated_command_stays_med() {
+    fn primitive_without_correlated_command_is_low_signal() {
         let evidence = BytecodeEvidence {
             items: vec![invoke(
                 "java/lang/Runtime",
@@ -160,7 +218,7 @@ mod tests {
         let findings = detect(&index);
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].severity, "med");
+        assert_eq!(findings[0].severity, "low");
         assert!(findings[0].extracted_commands.is_empty());
 
         let has_invoke_location = findings[0].evidence_locations.iter().any(|location| {
@@ -194,5 +252,31 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, "high");
         assert_eq!(findings[0].extracted_commands, vec!["powershell -enc demo"]);
+    }
+
+    #[test]
+    fn powershell_keyword_in_error_message_is_not_a_command() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                invoke(
+                    "java/lang/ProcessBuilder",
+                    "start",
+                    "sample.jar!/Exec.class",
+                    "Exec",
+                ),
+                string(
+                    "Persistent PowerShell host terminated unexpectedly.",
+                    "sample.jar!/Exec.class",
+                    "Exec",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, "low");
+        assert!(findings[0].extracted_commands.is_empty());
     }
 }

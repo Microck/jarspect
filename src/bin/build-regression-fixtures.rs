@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipWriter};
 

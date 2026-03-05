@@ -3,15 +3,15 @@ use std::collections::BTreeSet;
 use crate::analysis::Location;
 
 use super::index::{EvidenceIndex, InvokeHit};
-use super::spec::contains_any_token;
+use super::spec::{extract_urls, NETWORK_PRIMITIVE_MATCHERS};
 use super::DetectorFinding;
 
 const DETECTOR_ID: &str = "DETC-03.DYNAMIC_LOAD";
-const SENSITIVE_DYNAMIC_TOKENS: &[&str] =
-    &["java/lang/runtime", "exec", "defineclass", "loadlibrary"];
 
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
-    let primitive_matchers = [
+    // Only treat explicit class loading/definition primitives as "dynamic loading".
+    // Reflection alone (Class.forName / Method.invoke) is extremely common in benign code.
+    let loader_primitives = [
         (
             "java/net/URLClassLoader",
             "<init>",
@@ -21,17 +21,6 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
             "java/net/URLClassLoader",
             "newInstance",
             "java/net/URLClassLoader.newInstance",
-        ),
-        ("java/lang/Class", "forName", "java/lang/Class.forName"),
-        (
-            "java/lang/reflect/Method",
-            "invoke",
-            "java/lang/reflect/Method.invoke",
-        ),
-        (
-            "java/lang/reflect/Constructor",
-            "newInstance",
-            "java/lang/reflect/Constructor.newInstance",
         ),
         (
             "java/lang/ClassLoader",
@@ -47,15 +36,15 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
 
     let mut evidence_locations = Vec::new();
     let mut touched_classes = BTreeSet::new();
-    let mut matched_primitives = BTreeSet::new();
+    let mut matched_loader_primitives = BTreeSet::new();
 
-    for (owner, name, primitive_label) in primitive_matchers {
+    for (owner, name, primitive_label) in loader_primitives {
         let hits = index.invokes(owner, name);
         if hits.is_empty() {
             continue;
         }
 
-        matched_primitives.insert(primitive_label.to_string());
+        matched_loader_primitives.insert(primitive_label.to_string());
         collect_hits(hits, &mut evidence_locations, &mut touched_classes);
     }
 
@@ -63,20 +52,49 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
         return Vec::new();
     }
 
-    let mut correlated_sensitive_strings = BTreeSet::new();
-    for (entry_path, class_name) in &touched_classes {
-        for string_hit in index.strings_in_class(entry_path, class_name) {
-            if contains_any_token(&string_hit.value, SENSITIVE_DYNAMIC_TOKENS) {
-                correlated_sensitive_strings.insert(string_hit.value.clone());
+    let mut correlated_network_primitives = BTreeSet::new();
+    for (owner, name, primitive_label) in NETWORK_PRIMITIVE_MATCHERS {
+        let hits = index.invokes(owner, name);
+        if hits.is_empty() {
+            continue;
+        }
+
+        for hit in hits {
+            let key = (
+                hit.location.entry_path.clone(),
+                hit.location.class_name.clone(),
+            );
+            if !touched_classes.contains(&key) {
+                continue;
             }
+            correlated_network_primitives.insert((*primitive_label).to_string());
+            evidence_locations.push(hit.location.clone());
         }
     }
 
-    let severity = if correlated_sensitive_strings.is_empty() {
-        "med"
-    } else {
+    let mut extracted_urls = BTreeSet::new();
+    for (entry_path, class_name) in &touched_classes {
+        let strings = index
+            .strings_in_class(entry_path, class_name)
+            .iter()
+            .map(|hit| hit.value.as_str());
+        for url in extract_urls(strings) {
+            extracted_urls.insert(url);
+        }
+    }
+
+    // Baseline: medium (explicit loader primitives). Escalate to high if we can correlate it
+    // with outbound networking or literal URLs in the same class.
+    let severity = if !correlated_network_primitives.is_empty() || !extracted_urls.is_empty() {
         "high"
+    } else {
+        "med"
     };
+
+    let primitive_labels = matched_loader_primitives
+        .into_iter()
+        .collect::<Vec<_>>()
+        .join(", ");
     let extracted_file_paths = evidence_locations
         .iter()
         .map(|location| location.entry_path.clone())
@@ -84,22 +102,21 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
         .into_iter()
         .collect::<Vec<_>>();
 
-    let rationale = if correlated_sensitive_strings.is_empty() {
+    let rationale = if !extracted_urls.is_empty() {
         format!(
-            "Matched dynamic-loading primitives ({}), without correlated sensitive class/method tokens in the same class.",
-            matched_primitives
+            "Matched explicit dynamic code loading primitives ({primitive_labels}) with correlated URL evidence in the same class."
+        )
+    } else if !correlated_network_primitives.is_empty() {
+        format!(
+            "Matched explicit dynamic code loading primitives ({primitive_labels}) with correlated outbound networking primitive(s): {}.",
+            correlated_network_primitives
                 .into_iter()
                 .collect::<Vec<_>>()
                 .join(", ")
         )
     } else {
         format!(
-            "Matched dynamic-loading primitives ({}) with {} correlated sensitive string token(s) in the same class.",
-            matched_primitives
-                .into_iter()
-                .collect::<Vec<_>>()
-                .join(", "),
-            correlated_sensitive_strings.len()
+            "Matched explicit dynamic code loading primitives ({primitive_labels}) without correlated network or URL evidence."
         )
     };
 
@@ -110,7 +127,7 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
         severity: severity.to_string(),
         rationale,
         evidence_locations,
-        extracted_urls: Vec::new(),
+        extracted_urls: extracted_urls.into_iter().collect(),
         extracted_commands: Vec::new(),
         extracted_file_paths,
     }]
@@ -166,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn primitive_without_sensitive_strings_stays_med() {
+    fn reflection_only_does_not_emit_dynamic_loading() {
         let evidence = BytecodeEvidence {
             items: vec![invoke(
                 "java/lang/Class",
@@ -179,43 +196,29 @@ mod tests {
         let index = EvidenceIndex::new(&evidence);
         let findings = detect(&index);
 
-        assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].severity, "med");
-
-        let has_invoke_location = findings[0].evidence_locations.iter().any(|location| {
-            location
-                .method
-                .as_ref()
-                .map(|method| method.name == "fixture")
-                .unwrap_or(false)
-                && location.pc.is_some()
-        });
-        assert!(has_invoke_location);
+        assert!(findings.is_empty());
     }
 
     #[test]
-    fn correlated_sensitive_string_escalates_to_high() {
+    fn loader_primitive_without_network_is_med() {
         let evidence = BytecodeEvidence {
-            items: vec![
-                invoke(
-                    "java/lang/reflect/Method",
-                    "invoke",
-                    "sample.jar!/Dyn.class",
-                    "Dyn",
-                ),
-                string("java/lang/Runtime", "sample.jar!/Dyn.class", "Dyn"),
-            ],
+            items: vec![invoke(
+                "java/net/URLClassLoader",
+                "<init>",
+                "sample.jar!/Dyn.class",
+                "Dyn",
+            )],
         };
 
         let index = EvidenceIndex::new(&evidence);
         let findings = detect(&index);
 
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].severity, "high");
+        assert_eq!(findings[0].severity, "med");
     }
 
     #[test]
-    fn unrelated_class_string_does_not_escalate() {
+    fn loader_primitive_with_url_string_escalates_to_high() {
         let evidence = BytecodeEvidence {
             items: vec![
                 invoke(
@@ -224,7 +227,68 @@ mod tests {
                     "sample.jar!/Dyn.class",
                     "Dyn",
                 ),
-                string("defineClass", "sample.jar!/Other.class", "Other"),
+                string(
+                    "fetch https://example.invalid/payload.jar",
+                    "sample.jar!/Dyn.class",
+                    "Dyn",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, "high");
+        assert!(findings[0]
+            .extracted_urls
+            .iter()
+            .any(|url| url == "https://example.invalid/payload.jar"));
+    }
+
+    #[test]
+    fn loader_primitive_with_correlated_network_escalates_to_high() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                invoke(
+                    "java/net/URLClassLoader",
+                    "<init>",
+                    "sample.jar!/Dyn.class",
+                    "Dyn",
+                ),
+                invoke(
+                    "java/net/URL",
+                    "openConnection",
+                    "sample.jar!/Dyn.class",
+                    "Dyn",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, "high");
+        assert!(findings[0].evidence_locations.len() >= 2);
+    }
+
+    #[test]
+    fn network_in_other_class_does_not_escalate() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                invoke(
+                    "java/net/URLClassLoader",
+                    "<init>",
+                    "sample.jar!/Dyn.class",
+                    "Dyn",
+                ),
+                invoke(
+                    "java/net/URL",
+                    "openConnection",
+                    "sample.jar!/Other.class",
+                    "Other",
+                ),
             ],
         };
 

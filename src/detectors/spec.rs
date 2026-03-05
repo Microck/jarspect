@@ -9,10 +9,31 @@ pub const NETWORK_PRIMITIVE_MATCHERS: &[(&str, &str, &str)] = &[
         "openConnection",
         "java/net/URL.openConnection",
     ),
+    ("java/net/URL", "openStream", "java/net/URL.openStream"),
     (
         "java/net/URLConnection",
         "connect",
         "java/net/URLConnection.connect",
+    ),
+    (
+        "java/net/URLConnection",
+        "getInputStream",
+        "java/net/URLConnection.getInputStream",
+    ),
+    (
+        "java/net/URLConnection",
+        "getOutputStream",
+        "java/net/URLConnection.getOutputStream",
+    ),
+    (
+        "java/net/HttpURLConnection",
+        "connect",
+        "java/net/HttpURLConnection.connect",
+    ),
+    (
+        "javax/net/ssl/HttpsURLConnection",
+        "connect",
+        "javax/net/ssl/HttpsURLConnection.connect",
     ),
     ("java/net/Socket", "<init>", "java/net/Socket.<init>"),
     ("java/net/Socket", "connect", "java/net/Socket.connect"),
@@ -30,6 +51,23 @@ pub const NETWORK_PRIMITIVE_MATCHERS: &[(&str, &str, &str)] = &[
         "java/net/http/HttpClient",
         "sendAsync",
         "java/net/http/HttpClient.sendAsync",
+    ),
+    (
+        "okhttp3/OkHttpClient",
+        "newCall",
+        "okhttp3/OkHttpClient.newCall",
+    ),
+    ("okhttp3/Call", "execute", "okhttp3/Call.execute"),
+    ("okhttp3/Call", "enqueue", "okhttp3/Call.enqueue"),
+    (
+        "org/apache/http/client/HttpClient",
+        "execute",
+        "org/apache/http/client/HttpClient.execute",
+    ),
+    (
+        "org/apache/http/impl/client/CloseableHttpClient",
+        "execute",
+        "org/apache/http/impl/client/CloseableHttpClient.execute",
     ),
 ];
 

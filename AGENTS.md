@@ -2,25 +2,28 @@
 
 Instructions for AI coding agents working with this codebase.
 
-<!-- opensrc:start -->
+## Architecture
 
-## Source Code Reference
+Jarspect is a 3-layer security scanner for Minecraft `.jar` mods, written in Rust:
 
-Source code for dependencies is available in `opensrc/` for deeper understanding of implementation details.
+1. **Layer 1** (`src/malwarebazaar.rs`): MalwareBazaar SHA-256 hash lookup
+2. **Layer 2** (`src/analysis/`, `src/detectors/`): bytecode capability extraction + YARA
+3. **Layer 3** (`src/verdict.rs`): Azure OpenAI AI verdict
+4. **Static override** (`src/scan.rs`): high-confidence static signals override AI verdict to MALICIOUS
 
-See `opensrc/sources.json` for the list of available packages and their versions.
+Pipeline orchestrator: `src/scan.rs`. HTTP transport: `src/main.rs`. Profile builder: `src/profile.rs`.
 
-Use this source code when you need to understand how a package works internally, not just its types/interface.
+## Key conventions
 
-### Fetching Additional Source Code
+- All tests are in-crate (`#[cfg(test)]`) or in `tests/`. Run with `cargo test`.
+- No mocks. Tests use real fixtures under `tests/fixtures/`.
+- YARA rules live in `data/signatures/{demo,prod}/rules.yar`. Production rules require multiple corroborating strings.
+- Runtime data goes in `.local-data/` (gitignored).
+- Environment configuration: see `.env.example` for all variables.
 
-To fetch source code for a package or repository you need to understand, run:
+## Detector pattern
 
-```bash
-npx opensrc <package>           # npm package (e.g., npx opensrc zod)
-npx opensrc pypi:<package>      # Python package (e.g., npx opensrc pypi:requests)
-npx opensrc crates:<package>    # Rust crate (e.g., npx opensrc crates:serde)
-npx opensrc <owner>/<repo>      # GitHub repo (e.g., npx opensrc vercel/ai)
-```
-
-<!-- opensrc:end -->
+Each capability detector (`src/detectors/capability_*.rs`) follows the same shape:
+- Takes `&EvidenceIndex` (from `src/detectors/index.rs`)
+- Returns `Vec<Indicator>` with `id`, `severity`, `evidence`, `source: "detector"`
+- Uses class-scoped correlation gates for severity escalation

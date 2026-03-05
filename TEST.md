@@ -9,56 +9,67 @@ cd projects/jarspect
 git status --porcelain
 ```
 
-Expected: no output.
+Expected: no output (clean working tree).
 
 ## 1) Tooling sanity
 
 ```bash
 cargo --version
 curl --version
-node --version
 ```
-
-Note: `scripts/demo_run.sh` uses Node.js to parse JSON output.
 
 ## 2) Automated tests (Rust)
 
 ```bash
-cd projects/jarspect
 cargo check
 cargo test
 ```
 
+Expected: 70 unit + 3 integration tests pass.
+
 ## 3) Local smoke (API + UI)
 
-Terminal 1:
+Terminal 1 -- start server with production YARA rules:
 
 ```bash
-cd projects/jarspect
-cargo run
+JARSPECT_RULEPACKS=prod cargo run
 ```
 
-Terminal 2:
+Terminal 2 -- health check:
 
 ```bash
-curl -sS http://localhost:8000/health
+curl -sS http://localhost:18000/health | python3 -m json.tool
 ```
 
-UI:
-- http://localhost:8000/
+Expected: `status: ok`, `ai_enabled: true` (if Azure env vars set), `rulepacks: ["prod"]`.
 
-## 4) Demo smoke (scripted)
+UI: open http://localhost:18000/ -- verify health dot is green, upload zone is visible.
+
+## 4) E2E scan smoke
+
+Upload + scan a benign jar:
 
 ```bash
-cd projects/jarspect
+UPLOAD=$(curl -s -X POST http://localhost:18000/upload -F "file=@path/to/benign.jar")
+UPLOAD_ID=$(echo "$UPLOAD" | python3 -c "import sys,json; print(json.load(sys.stdin)['upload_id'])")
+curl -s -X POST http://localhost:18000/scan \
+  -H "Content-Type: application/json" \
+  -d "{\"upload_id\": \"$UPLOAD_ID\"}" | python3 -m json.tool
+```
+
+Expected: verdict `CLEAN`, method `ai_verdict`.
+
+## 5) Demo smoke (scripted)
+
+```bash
 bash scripts/demo_run.sh
 ```
 
-Expected: prints `scan_id`, `risk_tier`, `risk_score`, and a `top_indicators` list.
+Expected: prints scan results with verdict, confidence, and explanation.
 
-## 5) Submission artifacts
+## 6) Submission artifacts
 
 - README: `README.md`
 - Architecture diagram: `docs/architecture.svg` (source: `docs/architecture.mmd`)
-- Recording checklist: `demo/recording-checklist.md`
-- Optional local video artifact: `demo/video.mp4`
+- Voiceover script: `demo/voiceover.md`
+- Docs: `docs/corpus-calibration.md`, `docs/benchmarking.md`, `docs/false-positives.md`

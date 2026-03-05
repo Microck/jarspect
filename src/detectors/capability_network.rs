@@ -1,56 +1,57 @@
 use std::collections::BTreeSet;
 
 use crate::analysis::Location;
+use url::Url;
 
 use super::index::{EvidenceIndex, InvokeHit};
-use super::spec::extract_urls;
+use super::spec::{extract_urls, NETWORK_PRIMITIVE_MATCHERS};
 use super::DetectorFinding;
 
 const DETECTOR_ID: &str = "DETC-02.NETWORK_PRIMITIVE";
 
-pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
-    let primitive_matchers = [
-        ("java/net/URL", "<init>", "java/net/URL.<init>"),
-        (
-            "java/net/URL",
-            "openConnection",
-            "java/net/URL.openConnection",
-        ),
-        (
-            "java/net/URLConnection",
-            "connect",
-            "java/net/URLConnection.connect",
-        ),
-        ("java/net/Socket", "<init>", "java/net/Socket.<init>"),
-        ("java/net/Socket", "connect", "java/net/Socket.connect"),
-        (
-            "java/net/DatagramSocket",
-            "send",
-            "java/net/DatagramSocket.send",
-        ),
-        (
-            "java/net/http/HttpClient",
-            "send",
-            "java/net/http/HttpClient.send",
-        ),
-        (
-            "java/net/http/HttpClient",
-            "sendAsync",
-            "java/net/http/HttpClient.sendAsync",
-        ),
-    ];
+fn is_benign_url_host(host: &str) -> bool {
+    matches!(
+        host.trim().to_ascii_lowercase().as_str(),
+        "github.com"
+            | "polyformproject.org"
+            | "irisshaders.dev"
+            | "caffeinemc.net"
+            | "link.caffeinemc.net"
+            | "fabricmc.net"
+            | "quiltmc.org"
+            | "modrinth.com"
+            | "api.modrinth.com"
+    )
+}
 
+fn urls_are_all_benign(urls: &BTreeSet<String>) -> bool {
+    if urls.is_empty() {
+        return false;
+    }
+
+    urls.iter().all(|raw| {
+        let Ok(parsed) = Url::parse(raw.as_str()) else {
+            return false;
+        };
+        let Some(host) = parsed.host_str() else {
+            return false;
+        };
+        is_benign_url_host(host)
+    })
+}
+
+pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut evidence_locations = Vec::new();
     let mut touched_classes = BTreeSet::new();
     let mut matched_primitives = BTreeSet::new();
 
-    for (owner, name, primitive_label) in primitive_matchers {
+    for (owner, name, primitive_label) in NETWORK_PRIMITIVE_MATCHERS {
         let hits = index.invokes(owner, name);
         if hits.is_empty() {
             continue;
         }
 
-        matched_primitives.insert(primitive_label.to_string());
+        matched_primitives.insert((*primitive_label).to_string());
         collect_hits(hits, &mut evidence_locations, &mut touched_classes);
     }
 
@@ -69,7 +70,10 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
         }
     }
 
+    let urls_look_benign = urls_are_all_benign(&extracted_urls);
     let severity = if extracted_urls.is_empty() {
+        "low"
+    } else if urls_look_benign {
         "low"
     } else {
         "med"
@@ -88,6 +92,15 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
                 .into_iter()
                 .collect::<Vec<_>>()
                 .join(", ")
+        )
+    } else if urls_look_benign {
+        format!(
+            "Matched networking primitives ({}) with {} correlated URL(s), but all hosts look benign/documentation-related.",
+            matched_primitives
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", "),
+            extracted_urls.len()
         )
     } else {
         format!(
@@ -217,6 +230,35 @@ mod tests {
         assert_eq!(
             findings[0].extracted_urls,
             vec!["https://example.invalid/payload"]
+        );
+    }
+
+    #[test]
+    fn github_url_is_treated_as_low_signal() {
+        let evidence = BytecodeEvidence {
+            items: vec![
+                invoke(
+                    "java/net/URL",
+                    "openConnection",
+                    "sample.jar!/Net.class",
+                    "Net",
+                ),
+                string(
+                    "docs: https://github.com/CaffeineMC/sodium/wiki",
+                    "sample.jar!/Net.class",
+                    "Net",
+                ),
+            ],
+        };
+
+        let index = EvidenceIndex::new(&evidence);
+        let findings = detect(&index);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, "low");
+        assert_eq!(
+            findings[0].extracted_urls,
+            vec!["https://github.com/CaffeineMC/sodium/wiki"]
         );
     }
 
