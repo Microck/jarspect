@@ -204,6 +204,86 @@ When triggered, the verdict method becomes `static_override(ai_verdict)` (or `st
 | `MALICIOUS` | Strong evidence of malicious intent -- known malware hash, or AI-confirmed coordinated malicious behavior |
 ---
 
+## Benchmarks
+
+These benchmarks are written up like a small study: datasets, configuration, and reproducible metrics.
+
+### Methods
+
+- Datasets:
+  - Malware: MalwareBazaar multi-tag strict-modlike corpus (n=70) from tags `fractureiser`, `mavenrat`, `maksstealer`, `maksrat` (must contain Minecraft mod metadata).
+  - Benign: Modrinth top-50 most-downloaded mods (n=50).
+- Config (baseline): `JARSPECT_RULEPACKS=prod`, AI enabled, and `JARSPECT_MB_HASH_MATCH_ENABLED=0`.
+  - Disabling MalwareBazaar hash matching is important: it forces the system to earn the verdict via bytecode detectors + YARA + AI, rather than trivially labeling by hash.
+- Success criteria:
+  - Malware detection rate = fraction of malicious samples labeled `MALICIOUS`.
+  - Benign clean rate = fraction of benign samples labeled `CLEAN`.
+  - We report Wilson 95% confidence intervals to avoid overclaiming on small sample sizes.
+
+### Results (baseline: MalwareBazaar hash matching disabled)
+
+| Dataset | n | CLEAN | SUSPICIOUS | MALICIOUS | Key rate (Wilson 95% CI) |
+|---|---:|---:|---:|---:|---|
+| MalwareBazaar strict-modlike | 70 | 0 | 0 | 70 | Detection: 100% (94.8-100.0%) |
+| Modrinth top-50 | 50 | 50 | 0 | 0 | Clean: 100% (92.9-100.0%) |
+
+### Verdict Method Attribution (baseline)
+
+For the malware set, the majority of samples are guaranteed MALICIOUS via the static override layer.
+
+| Dataset | method | count |
+|---|---|---:|
+| MalwareBazaar strict-modlike (n=70) | `static_override(ai_verdict)` | 63 |
+| MalwareBazaar strict-modlike (n=70) | `ai_verdict` | 7 |
+| Modrinth top-50 (n=50) | `ai_verdict` | 50 |
+
+```mermaid
+pie showData
+  title Malware verdict method (n=70)
+  "static_override(ai_verdict)" : 63
+  "ai_verdict" : 7
+```
+
+### Ablation Study
+
+This shows which layers are doing the work. Rows marked "derived" use the fact that `static_override(...)` only triggers when the underlying verdict was *not* MALICIOUS.
+
+| Config | Malware (n=70) | Benign (n=50) | Notes |
+|---|---|---|---|
+| Baseline: prod + AI + static override | 70 MALICIOUS | 50 CLEAN | `JARSPECT_MB_HASH_MATCH_ENABLED=0` |
+| No static override (derived from baseline) | 7 MALICIOUS | 50 CLEAN | 63/70 malware samples rely on static override |
+| AI disabled: prod + heuristic + static override | 70 MALICIOUS | 43 CLEAN, 7 SUSPICIOUS | AI reduces false alarms on benign mods |
+| AI disabled + prod disabled: demo + heuristic + static override | 66 MALICIOUS, 3 CLEAN, 1 SUSPICIOUS | 39 CLEAN, 10 SUSPICIOUS, 1 MALICIOUS | Production YARA rules materially improve accuracy |
+
+### Capability Prevalence (baseline)
+
+Capabilities are marked `present` only for medium/high detector signals (low-only hits are tracked separately as low-signal indicators).
+
+| Capability | Malware (n=70) | Benign (n=50) |
+|---|---:|---:|
+| `dynamic_loading` | 94.3% | 2.0% |
+| `filesystem` | 75.7% | 6.0% |
+| `network` | 78.6% | 18.0% |
+| `deserialization` | 0.0% | 8.0% |
+| `native_loading` | 0.0% | 8.0% |
+| `execution` | 0.0% | 0.0% |
+| `persistence` | 0.0% | 0.0% |
+| `credential_theft` | 0.0% | 0.0% |
+
+### Generating Figures (optional)
+
+If you want nicer charts than Markdown tables, export SVGs from these tools and embed them in the README:
+
+- Sankey / alluvial: https://app.rawgraphs.io/ or https://sankeymatic.com/
+- UpSet (capability intersections): https://upset.app/
+- Heatmaps (capability prevalence, YARA x family): https://www.cleanchart.app/convert/csv-to-heatmap
+
+GitHub renders Mermaid diagrams directly in Markdown (flowcharts, sequence diagrams, pie charts, etc.). See: https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams
+
+Repro steps: `docs/benchmarking.md` and `docs/corpus-calibration.md`.
+
+---
+
 ## Quickstart
 
 **Prerequisites:** Rust stable toolchain ([rustup.rs](https://rustup.rs))
