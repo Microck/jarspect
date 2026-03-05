@@ -11,10 +11,15 @@ const indicatorsEl = $("#indicators");
 const filtersEl = $("#indicator-filters");
 const submitBtn = $("#run-scan");
 const btnText = $("#btn-text");
-const btnSpinner = $("#btn-spinner");
+const btnLoader = $("#btn-loader");
 const dropZone = $("#drop-zone");
 const fileInput = $("#mod-file");
 const fileNameEl = $("#file-name");
+const fileBadgeName = $("#file-badge-name");
+const pipelineStepsEl = $("#pipeline-steps");
+const copyScanIdBtn = $("#copy-scan-id");
+const copyExplanationBtn = $("#copy-explanation");
+const verdictMethodBadge = $("#verdict-method-badge");
 const verdictBanner = $("#verdict-banner");
 const verdictLabel = $("#verdict-label");
 const verdictMethod = $("#verdict-method");
@@ -59,9 +64,83 @@ function setStatus(message, state) {
 function setLoading(on) {
   submitBtn.disabled = on;
   submitBtn.dataset.scanning = on ? "true" : "false";
-  btnText.textContent = on ? "Scanning..." : "Run scan";
-  btnSpinner.hidden = !on;
+  btnText.textContent = on ? "Scanning" : "Run scan";
+  btnLoader.hidden = !on;
 }
+
+/* ========== Pipeline step rendering ========== */
+const PIPELINE_STEPS = [
+  { id: "upload", label: "Upload", detail: "Sending .jar to server" },
+  { id: "threat-intel", label: "Threat intelligence", detail: "MalwareBazaar hash lookup" },
+  { id: "bytecode", label: "Bytecode analysis", detail: "Archive traversal, class parsing, YARA, detectors" },
+  { id: "ai-verdict", label: "AI verdict", detail: "Azure OpenAI analysis" },
+];
+
+const STEP_ICONS = {
+  pending: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg>`,
+  running: `<span class="typing-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`,
+  done: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  skip: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+};
+
+function showPipelineSteps() {
+  pipelineStepsEl.hidden = false;
+  pipelineStepsEl.innerHTML = "";
+  PIPELINE_STEPS.forEach((step, i) => {
+    const el = document.createElement("div");
+    el.className = "pipeline-step";
+    el.dataset.state = "pending";
+    el.id = `step-${step.id}`;
+    el.style.animationDelay = `${i * 60}ms`;
+    el.innerHTML =
+      `<span class="pipeline-step-icon pipeline-step-icon--pending">${STEP_ICONS.pending}</span>` +
+      `<div class="pipeline-step-body">` +
+      `<span class="pipeline-step-label">${escapeHtml(step.label)}</span>` +
+      `<span class="pipeline-step-detail">${escapeHtml(step.detail)}</span>` +
+      `</div>`;
+    pipelineStepsEl.appendChild(el);
+  });
+}
+
+function updatePipelineStep(stepId, state, detail) {
+  const el = document.getElementById(`step-${stepId}`);
+  if (!el) return;
+  el.dataset.state = state;
+  const iconEl = el.querySelector(".pipeline-step-icon");
+  iconEl.className = `pipeline-step-icon pipeline-step-icon--${state}`;
+  iconEl.innerHTML = STEP_ICONS[state] || STEP_ICONS.pending;
+  if (detail) {
+    el.querySelector(".pipeline-step-detail").textContent = detail;
+  }
+}
+
+function hidePipelineSteps() {
+  pipelineStepsEl.hidden = true;
+}
+
+/* ========== Copy to clipboard ========== */
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.dataset.copied = "true";
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    setTimeout(() => {
+      btn.dataset.copied = "false";
+      btn.innerHTML = origHtml;
+    }, 1500);
+  }).catch(() => {});
+}
+
+copyScanIdBtn.addEventListener("click", () => {
+  const text = scanIdEl.textContent;
+  if (text && text !== "--") copyToClipboard(text, copyScanIdBtn);
+});
+
+copyExplanationBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  const text = explanationEl.textContent;
+  if (text) copyToClipboard(text, copyExplanationBtn);
+});
 
 function updateScanButtonState() {
   const hasFile = fileInput.files && fileInput.files.length > 0;
@@ -251,6 +330,7 @@ function renderResult(response) {
     ? verdict.method.replace(/_/g, " ")
     : "unknown";
   verdictMethod.textContent = methodText;
+  verdictMethodBadge.textContent = methodText;
 
   const confidence = Number.isFinite(verdict.confidence)
     ? Math.round(verdict.confidence * 100)
@@ -382,14 +462,22 @@ fileInput.addEventListener("change", () => {
   const file = fileInput.files && fileInput.files[0];
   if (file) {
     fileNameEl.textContent = file.name;
+    fileBadgeName.textContent = formatFileSize(file.size);
     dropZone.classList.add("has-file");
   } else {
     fileNameEl.textContent = "Choose .jar file or drag here";
+    fileBadgeName.textContent = "";
     dropZone.classList.remove("has-file");
   }
 
   updateScanButtonState();
 });
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 dropZone.addEventListener("dragover", (event) => {
   event.preventDefault();
@@ -414,6 +502,7 @@ dropZone.addEventListener("drop", (event) => {
   transfer.items.add(file);
   fileInput.files = transfer.files;
   fileNameEl.textContent = file.name;
+  fileBadgeName.textContent = formatFileSize(file.size);
   dropZone.classList.add("has-file");
   updateScanButtonState();
 });
@@ -429,19 +518,49 @@ form.addEventListener("submit", async (event) => {
 
   setLoading(true);
   resultsEl.hidden = true;
+  showPipelineSteps();
 
   try {
-    setStatus("Uploading...", "scanning");
+    // Step 1: Upload
+    updatePipelineStep("upload", "running");
+    setStatus("", "scanning");
     const upload = await uploadJar(file);
+    updatePipelineStep("upload", "done", `upload_id: ${upload.upload_id.slice(0, 12)}…`);
 
-    setStatus("Running 3-layer analysis...", "scanning");
+    // Steps 2-4: Scan (server runs all 3 layers)
+    updatePipelineStep("threat-intel", "running");
+    updatePipelineStep("bytecode", "pending");
+    updatePipelineStep("ai-verdict", "pending");
+
     const result = await runScan(upload.upload_id);
+
+    // Resolve pipeline step states from the result
+    const method = (result.verdict && result.verdict.method) || "";
+    if (method === "malwarebazaar_hash") {
+      updatePipelineStep("threat-intel", "done", "Hash match found — MALICIOUS");
+      updatePipelineStep("bytecode", "skip", "Short-circuited by hash match");
+      updatePipelineStep("ai-verdict", "skip", "Short-circuited by hash match");
+    } else {
+      updatePipelineStep("threat-intel", "done", "No hash match");
+      updatePipelineStep("bytecode", "done", `${result.intake?.file_count || "?"} files, ${result.intake?.class_file_count || "?"} classes`);
+      if (method.includes("ai_verdict")) {
+        updatePipelineStep("ai-verdict", "done", `Verdict: ${result.verdict?.result || "?"}`);
+      } else if (method === "heuristic_fallback") {
+        updatePipelineStep("ai-verdict", "skip", "AI unavailable — heuristic used");
+      } else {
+        updatePipelineStep("ai-verdict", "done");
+      }
+    }
 
     renderResult(result);
     setStatus("Scan complete.", "done");
+
+    // Hide pipeline after a beat so the user sees the completed state
+    setTimeout(() => hidePipelineSteps(), 1200);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     setStatus(message, "error");
+    hidePipelineSteps();
   } finally {
     setLoading(false);
   }

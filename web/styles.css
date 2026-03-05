@@ -8,8 +8,8 @@
   --bg-raised: #ffffff;
   --surface: #f4f4f2;
   --ink: #1a1a1a;
-  --ink-2: #6b6b6b;
-  --ink-3: #9a9a9a;
+  --ink-2: #555555;
+  --ink-3: #888888;
   --accent: #0cc42c;
   --accent-dim: rgba(12, 196, 44, 0.08);
   --accent-strong: #0aa324;
@@ -133,27 +133,6 @@ body {
 .upload-section {
   padding-bottom: 1.5rem;
 }
-.upload-box {
-  border: 2px dashed var(--border-strong);
-  border-radius: var(--radius);
-  padding: 2.25rem 1.5rem;
-  display: flex; align-items: center; gap: 1rem;
-  cursor: pointer;
-  transition: border-color var(--t-base), background var(--t-base);
-}
-.upload-box:hover {
-  border-color: var(--ink-3);
-  background: var(--surface);
-}
-.upload-box.drag-over {
-  border-color: var(--accent);
-  background: var(--accent-dim);
-}
-.upload-box.has-file {
-  border-style: solid;
-  border-color: var(--accent);
-  background: var(--accent-dim);
-}
 .upload-icon {
   color: var(--ink-3); flex-shrink: 0;
   transition: color var(--t-base);
@@ -172,36 +151,7 @@ body {
 #scan-form {
   margin-bottom: 0.75rem;
 }
-.scan-btn {
-  width: 100%;
-  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  padding: 0.72rem 1.5rem;
-  font-family: inherit; font-size: 0.88rem; font-weight: 600;
-  color: #fff;
-  background: var(--ink);
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: transform var(--t-fast), opacity var(--t-fast), background var(--t-fast);
-}
-.scan-btn:hover:not(:disabled) {
-  background: #2a2a2a;
-}
-.scan-btn:active:not(:disabled) {
-  transform: scale(0.985);
-}
-.scan-btn:disabled {
-  opacity: 0.35; cursor: not-allowed;
-}
-.scan-btn[data-scanning="true"] {
-  background: var(--ink-2);
-}
-.spin-icon {
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+/* (spin-icon removed — replaced by typing-dots loader) */
 
 /* ========== Status ========== */
 .status-line {
@@ -242,6 +192,7 @@ body {
   letter-spacing: -0.03em;
   line-height: 1;
   color: var(--ink);
+  text-decoration: none;
   transition: color var(--t-base);
 }
 .verdict-method {
@@ -288,33 +239,7 @@ body {
 .fact-val { font-size: 0.82rem; font-weight: 500; color: var(--ink); }
 .fact-key { font-size: 0.68rem; color: var(--ink-3); letter-spacing: 0.02em; }
 
-/* ---- Explanation accordion ---- */
-.explain-accordion {
-  margin-bottom: 2rem;
-}
-.explain-toggle {
-  font-size: 0.82rem; font-weight: 600; color: var(--ink);
-  cursor: pointer;
-  list-style: none;
-  padding: 0.5rem 0;
-  user-select: none;
-}
-.explain-toggle::-webkit-details-marker { display: none; }
-.explain-toggle::after {
-  content: " \2193";
-  font-size: 0.75rem; color: var(--ink-3);
-}
-details[open] > .explain-toggle::after {
-  content: " \2191";
-}
-.explain-body {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.78rem; line-height: 1.7;
-  color: var(--ink-2);
-  white-space: pre-wrap; word-break: break-word;
-  padding: 1rem 0 0;
-  animation: reveal 0.35s var(--ease);
-}
+/* (explain-accordion styles moved to bottom with polish block) */
 
 /* ---- Capabilities assessment ---- */
 .capabilities-section {
@@ -449,7 +374,13 @@ details[open] > .explain-toggle::after {
   margin-bottom: 0.25rem;
 }
 .indicator-evidence {
-  font-size: 0.78rem; color: var(--ink-2); line-height: 1.55;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.72rem; color: var(--ink-2); line-height: 1.6;
+  background: var(--surface);
+  padding: 0.35em 0.6em;
+  border-radius: 4px;
+  word-break: break-all;
+  margin-top: 0.15rem;
 }
 .indicator-file {
   font-family: "JetBrains Mono", monospace;
@@ -458,7 +389,7 @@ details[open] > .explain-toggle::after {
 }
 .indicator-rationale {
   font-size: 0.75rem; color: var(--ink-3); font-style: italic;
-  margin-top: 0.25rem;
+  margin-top: 0.4rem;
 }
 
 .empty-state {
@@ -477,6 +408,216 @@ details[open] > .explain-toggle::after {
   flex-wrap: wrap;
 }
 .footer-sep { color: var(--border-strong); }
+
+/* ========== Pipeline steps (scan progress) ========== */
+.pipeline-steps {
+  display: flex; flex-direction: column; gap: 0;
+  margin-bottom: 1.5rem;
+}
+.pipeline-step {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  padding: 0.6rem 0;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fade-up 0.35s var(--ease) forwards;
+}
+.pipeline-step + .pipeline-step {
+  border-top: 1px solid var(--border);
+}
+.pipeline-step-icon {
+  width: 20px; height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pipeline-step-icon svg { width: 16px; height: 16px; }
+.pipeline-step-icon--pending { color: var(--ink-3); }
+.pipeline-step-icon--running { color: var(--accent); }
+.pipeline-step-icon--done { color: var(--accent-strong); }
+.pipeline-step-icon--skip { color: var(--ink-3); opacity: 0.5; }
+.pipeline-step-body {
+  display: flex; flex-direction: column; gap: 0.1rem;
+  min-width: 0;
+}
+.pipeline-step-label {
+  font-size: 0.82rem; font-weight: 500; color: var(--ink);
+}
+.pipeline-step[data-state="pending"] .pipeline-step-label { color: var(--ink-3); }
+.pipeline-step[data-state="skip"] .pipeline-step-label {
+  color: var(--ink-3); text-decoration: line-through; opacity: 0.6;
+}
+.pipeline-step-detail {
+  font-size: 0.72rem; color: var(--ink-2);
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Typing dots loader (prompt-kit inspired) */
+.typing-dots {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 16px;
+}
+.typing-dots .dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dots .dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots .dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* ========== Reasoning-style explanation ========== */
+.explain-accordion {
+  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.explain-toggle {
+  font-size: 0.82rem; font-weight: 600; color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+  padding: 0.75rem 1rem;
+  user-select: none;
+  display: flex; align-items: center; gap: 0.5rem;
+  background: var(--surface);
+  transition: background var(--t-fast);
+}
+.explain-toggle:hover { background: var(--border); }
+.explain-toggle::-webkit-details-marker { display: none; }
+.explain-toggle .toggle-chevron {
+  width: 16px; height: 16px;
+  color: var(--ink-2);
+  transition: transform 0.2s var(--ease);
+  flex-shrink: 0;
+}
+details[open] > .explain-toggle .toggle-chevron {
+  transform: rotate(180deg);
+}
+.explain-toggle .toggle-label { flex: 1; }
+.explain-toggle .toggle-badge {
+  font-size: 0.62rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+  color: var(--ink-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.explain-body {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.78rem; line-height: 1.7;
+  color: var(--ink-2);
+  white-space: pre-wrap; word-break: break-word;
+  padding: 1rem;
+  animation: reveal 0.35s var(--ease);
+  border-top: 1px solid var(--border);
+}
+
+/* ========== Copy button ========== */
+.copy-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  background: none; border: 1px solid var(--border); border-radius: 5px;
+  cursor: pointer;
+  color: var(--ink-3);
+  transition: all var(--t-fast);
+  flex-shrink: 0;
+}
+.copy-btn:hover { color: var(--ink); border-color: var(--border-strong); background: var(--surface); }
+.copy-btn[data-copied="true"] { color: var(--accent-strong); border-color: var(--accent); }
+.copy-btn svg { width: 14px; height: 14px; }
+
+/* ========== Upload polish ========== */
+.upload-box {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
+  cursor: pointer;
+  transition: border-color var(--t-base), background var(--t-base), transform var(--t-fast);
+  text-align: center;
+  position: relative;
+}
+.upload-box:hover {
+  border-color: var(--ink-3);
+  background: var(--surface);
+}
+.upload-box:active:not(.has-file) {
+  transform: scale(0.99);
+}
+.upload-box.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.01);
+}
+.upload-box.drag-over .upload-icon { color: var(--accent); }
+.upload-box.has-file {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  flex-direction: row;
+  text-align: left;
+  padding: 1.25rem 1.5rem;
+}
+.upload-hint {
+  font-size: 0.72rem; color: var(--ink-3);
+  margin-top: -0.15rem;
+}
+.upload-box.has-file .upload-hint { display: none; }
+.upload-box .file-badge {
+  display: none;
+}
+.upload-box.has-file .file-badge {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.68rem; font-weight: 500;
+  color: var(--accent-strong);
+  background: rgba(12, 196, 44, 0.12);
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ========== Scan button polish ========== */
+.scan-btn {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  padding: 0.72rem 1.5rem;
+  font-family: inherit; font-size: 0.88rem; font-weight: 600;
+  color: #fff;
+  background: var(--ink);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform var(--t-fast), opacity var(--t-fast), background var(--t-fast), box-shadow var(--t-fast);
+}
+.scan-btn:hover:not(:disabled) {
+  background: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.scan-btn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.scan-btn:disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+.scan-btn[data-scanning="true"] {
+  background: var(--ink-2);
+}
+
+/* ========== Verdict polish — add subtle left accent ========== */
+.verdict[data-tier="CLEAN"] { border-left: 3px solid var(--success); }
+.verdict[data-tier="SUSPICIOUS"] { border-left: 3px solid var(--warning); }
+.verdict[data-tier="MALICIOUS"] { border-left: 3px solid var(--danger); }
+.verdict[data-tier="UNKNOWN"] { border-left: 3px solid var(--ink-3); }
+
+/* ========== Fact row — add copy on scan-id ========== */
+.fact-val-wrap {
+  display: flex; align-items: center; gap: 0.35rem;
+}
 
 /* ========== Animations ========== */
 @keyframes fade-up {
@@ -497,5 +638,5 @@ details[open] > .explain-toggle::after {
   .verdict-meta { gap: 1.5rem; }
   .verdict-stat { text-align: left; }
   .facts { flex-direction: column; gap: 1rem; }
-  .upload-box { flex-direction: column; text-align: center; padding: 2rem 1rem; }
+  .upload-box.has-file { flex-direction: column; text-align: center; }
 }

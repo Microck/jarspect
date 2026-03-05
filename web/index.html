@@ -43,12 +43,17 @@
       <!-- Upload -->
       <section class="upload-section">
         <div class="upload-box" id="drop-zone">
-          <svg class="upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="upload-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
           <span class="upload-label" id="file-name">Choose .jar file or drag here</span>
+          <span class="upload-hint">Supports .jar files up to 50 MB</span>
+          <span class="file-badge" id="file-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="file-badge-name"></span>
+          </span>
           <input id="mod-file" type="file" accept=".jar" class="sr-only" required />
         </div>
       </section>
@@ -57,11 +62,14 @@
       <form id="scan-form">
         <button id="run-scan" type="submit" class="scan-btn" disabled>
           <span id="btn-text">Run scan</span>
-          <svg id="btn-spinner" class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" hidden>
-            <path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07l-2.83 2.83M9.76 14.24l-2.83 2.83m12.14 0l-2.83-2.83M9.76 9.76L6.93 6.93"/>
-          </svg>
+          <span id="btn-loader" class="typing-dots" hidden>
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </span>
         </button>
       </form>
+
+      <!-- Pipeline progress steps (shown during scan) -->
+      <div class="pipeline-steps" id="pipeline-steps" hidden></div>
 
       <!-- Status line -->
       <p class="status-line" id="status"></p>
@@ -71,7 +79,7 @@
         <!-- Verdict -->
         <div class="verdict" id="verdict-banner">
           <div class="verdict-label-wrap">
-            <span class="verdict-label" id="verdict-label">--</span>
+            <span class="verdict-label" id="verdict-label" spellcheck="false">--</span>
             <span class="verdict-method mono" id="verdict-method"></span>
           </div>
           <div class="verdict-meta">
@@ -89,7 +97,12 @@
         <!-- Scan facts -->
         <div class="facts">
           <div class="fact">
-            <span class="fact-val mono" id="scan-id">--</span>
+            <div class="fact-val-wrap">
+              <span class="fact-val mono" id="scan-id">--</span>
+              <button class="copy-btn" id="copy-scan-id" title="Copy scan ID" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
             <span class="fact-key">Scan ID</span>
           </div>
           <div class="fact">
@@ -102,10 +115,17 @@
           </div>
         </div>
 
-        <!-- Explanation -->
+        <!-- Explanation (Reasoning-style collapsible) -->
         <details class="explain-accordion" open>
-          <summary class="explain-toggle">AI explanation</summary>
-          <pre class="explain-body" id="explanation"></pre>
+          <summary class="explain-toggle">
+            <svg class="toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="toggle-label">AI explanation</span>
+            <span class="toggle-badge" id="verdict-method-badge"></span>
+            <button class="copy-btn" id="copy-explanation" title="Copy explanation" type="button" onclick="event.stopPropagation()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </summary>
+          <pre class="explain-body" id="explanation" spellcheck="false"></pre>
         </details>
 
         <!-- Capabilities assessment -->
