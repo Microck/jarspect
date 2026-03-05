@@ -206,43 +206,37 @@ When triggered, the verdict method becomes `static_override(ai_verdict)` (or `st
 
 ## Benchmarks
 
-These benchmarks are written up like a small study: datasets, configuration, and reproducible metrics.
+We tested Jarspect against 120 real-world samples — 70 confirmed malware and 50 popular benign mods — with MalwareBazaar hash matching **disabled** so every verdict had to be earned through bytecode analysis, YARA rules, and AI reasoning rather than a trivial hash lookup.
 
-### Methods
+**Datasets.** The malware corpus is 70 jars from MalwareBazaar, filtered to samples that actually contain Minecraft mod metadata (`fractureiser`, `mavenrat`, `maksstealer`, `maksrat` tags). The benign corpus is the top 50 most-downloaded mods from Modrinth. Both are documented in [`docs/corpus-calibration.md`](docs/corpus-calibration.md). Wilson 95% confidence intervals are reported because 120 samples is honest but not large — we don't want to overclaim.
 
-- Datasets:
-  - Malware: MalwareBazaar multi-tag strict-modlike corpus (n=70) from tags `fractureiser`, `mavenrat`, `maksstealer`, `maksrat` (must contain Minecraft mod metadata).
-  - Benign: Modrinth top-50 most-downloaded mods (n=50).
-- Config (baseline): `JARSPECT_RULEPACKS=prod`, AI enabled, and `JARSPECT_MB_HASH_MATCH_ENABLED=0`.
-  - Disabling MalwareBazaar hash matching is important: it forces the system to earn the verdict via bytecode detectors + YARA + AI, rather than trivially labeling by hash.
-- Success criteria:
-  - Malware detection rate = fraction of malicious samples labeled `MALICIOUS`.
-  - Benign clean rate = fraction of benign samples labeled `CLEAN`.
-  - We report Wilson 95% confidence intervals to avoid overclaiming on small sample sizes.
+### Results
 
-### Results (baseline: MalwareBazaar hash matching disabled)
-
-| Dataset | n | CLEAN | SUSPICIOUS | MALICIOUS | Key rate (Wilson 95% CI) |
+| Dataset | n | CLEAN | SUSPICIOUS | MALICIOUS | Rate (Wilson 95% CI) |
 |---|---:|---:|---:|---:|---|
-| MalwareBazaar strict-modlike | 70 | 0 | 0 | 70 | Detection: 100% (94.8-100.0%) |
-| Modrinth top-50 | 50 | 50 | 0 | 0 | Clean: 100% (92.9-100.0%) |
+| MalwareBazaar strict-modlike | 70 | 0 | 0 | **70** | Detection: **100%** (94.8–100.0%) |
+| Modrinth top-50 | 50 | **50** | 0 | 0 | Clean: **100%** (92.9–100.0%) |
 
-### Figures (generated)
+Perfect separation on this corpus. No false positives, no missed malware.
 
-These SVGs are committed so the README contains the actual benchmark visuals (no external dashboard required).
-
-What to look for:
-- Verdict distribution: perfect separation on this benchmark (malware -> MALICIOUS, benign -> CLEAN).
-- Method attribution: most malware is guaranteed by the static override layer rather than relying on the AI alone.
-- Capability prevalence + intersections: malware clusters on a specific capability combination (dynamic loading + network + filesystem).
+Of the 70 malware verdicts, 63 were guaranteed by the static override layer (`static_override(ai_verdict)`) — meaning YARA rules or high-confidence detector correlations locked in the MALICIOUS verdict before the AI even had a say. The remaining 7 were caught by the AI alone. All 50 benign mods were classified by `ai_verdict`.
 
 <img alt="Baseline verdict distribution" src="docs/benchmarks/baseline-verdict-distribution.svg" width="920" />
 
 <img alt="Baseline method attribution" src="docs/benchmarks/baseline-method-attribution.svg" width="920" />
 
-<img alt="Baseline capability prevalence" src="docs/benchmarks/baseline-capability-prevalence.svg" width="920" />
+### What the layers contribute
 
-<img alt="Baseline top capability combos" src="docs/benchmarks/baseline-top-capability-combos.svg" width="920" />
+The ablation study strips layers away to show what each one is doing:
+
+| Configuration | Malware (n=70) | Benign (n=50) |
+|---|---|---|
+| **Full pipeline** (prod YARA + AI + static override) | 70 MALICIOUS | 50 CLEAN |
+| AI alone (derived: no static override) | 7 MALICIOUS | 50 CLEAN |
+| **AI disabled** (prod YARA + heuristic + static override) | 70 MALICIOUS | 43 CLEAN, 7 SUSPICIOUS |
+| **AI + prod YARA disabled** (demo YARA + heuristic + static override) | 66 MALICIOUS, 3 CLEAN, 1 SUSPICIOUS | 39 CLEAN, 10 SUSPICIOUS, 1 MALICIOUS |
+
+The takeaway: the static override layer carries most of the malware detection weight (63/70 samples), but the AI is critical for benign accuracy — without it, 7 benign mods get flagged SUSPICIOUS. The production YARA rules are the difference between catching 66 and 70 malware samples, and between 1 false positive and 0.
 
 <details>
   <summary>Ablation figure (AI off / demo vs prod)</summary>
@@ -250,45 +244,30 @@ What to look for:
   <img alt="Ablation verdict distribution" src="docs/benchmarks/ablation-verdict-distribution.svg" width="920" />
 </details>
 
-### Verdict Method Attribution (baseline)
+### Capability fingerprints
 
-For the malware set, the majority of samples are guaranteed MALICIOUS via the static override layer.
-
-| Dataset | method | count |
-|---|---|---:|
-| MalwareBazaar strict-modlike (n=70) | `static_override(ai_verdict)` | 63 |
-| MalwareBazaar strict-modlike (n=70) | `ai_verdict` | 7 |
-| Modrinth top-50 (n=50) | `ai_verdict` | 50 |
-
-### Ablation Study
-
-This shows which layers are doing the work. Rows marked "derived" use the fact that `static_override(...)` only triggers when the underlying verdict was *not* MALICIOUS.
-
-| Config | Malware (n=70) | Benign (n=50) | Notes |
-|---|---|---|---|
-| Baseline: prod + AI + static override | 70 MALICIOUS | 50 CLEAN | `JARSPECT_MB_HASH_MATCH_ENABLED=0` |
-| No static override (derived from baseline) | 7 MALICIOUS | 50 CLEAN | 63/70 malware samples rely on static override |
-| AI disabled: prod + heuristic + static override | 70 MALICIOUS | 43 CLEAN, 7 SUSPICIOUS | AI reduces false alarms on benign mods |
-| AI disabled + prod disabled: demo + heuristic + static override | 66 MALICIOUS, 3 CLEAN, 1 SUSPICIOUS | 39 CLEAN, 10 SUSPICIOUS, 1 MALICIOUS | Production YARA rules materially improve accuracy |
-
-### Capability Prevalence (baseline)
-
-Capabilities are marked `present` only for medium/high detector signals (low-only hits are tracked separately as low-signal indicators).
+Malware and benign mods look very different at the bytecode level. Capabilities are counted only when detectors fire at medium or high severity — low-signal noise is excluded.
 
 | Capability | Malware (n=70) | Benign (n=50) |
 |---|---:|---:|
 | `dynamic_loading` | 94.3% | 2.0% |
-| `filesystem` | 75.7% | 6.0% |
 | `network` | 78.6% | 18.0% |
+| `filesystem` | 75.7% | 6.0% |
 | `deserialization` | 0.0% | 8.0% |
 | `native_loading` | 0.0% | 8.0% |
 | `execution` | 0.0% | 0.0% |
 | `persistence` | 0.0% | 0.0% |
 | `credential_theft` | 0.0% | 0.0% |
 
-### Generating Figures (optional)
+The signature pattern is clear: malware clusters heavily on `dynamic_loading` + `network` + `filesystem` (the URLClassLoader → remote fetch → write-to-disk pipeline). Benign mods are mostly capability-free at medium/high severity, with small amounts of `network` (mod update checkers) and `deserialization`/`native_loading` (legitimate use cases).
 
-The SVG figures in `docs/benchmarks/` are generated locally from `aggregate.csv`/`results.csv` using:
+<img alt="Baseline capability prevalence" src="docs/benchmarks/baseline-capability-prevalence.svg" width="920" />
+
+<img alt="Baseline top capability combos" src="docs/benchmarks/baseline-top-capability-combos.svg" width="920" />
+
+### Reproducing these benchmarks
+
+Full reproduction steps, corpus selection criteria, and aggregation scripts are documented in [`docs/benchmarking.md`](docs/benchmarking.md) and [`docs/corpus-calibration.md`](docs/corpus-calibration.md). The SVG figures are generated with:
 
 ```bash
 bun scripts/render-benchmark-figures.ts \
@@ -296,16 +275,6 @@ bun scripts/render-benchmark-figures.ts \
   --baseline-benign-aggregate <benign-run>/aggregate.csv \
   --out-dir docs/benchmarks
 ```
-
-If you prefer online chart builders (export SVG and embed), these work well:
-
-- Sankey / alluvial: https://app.rawgraphs.io/ or https://sankeymatic.com/
-- UpSet (capability intersections): https://upset.app/
-- Heatmaps (capability prevalence, YARA x family): https://www.cleanchart.app/convert/csv-to-heatmap
-
-GitHub renders Mermaid diagrams directly in Markdown (flowcharts, sequence diagrams, pie charts, etc.). See: https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams
-
-Repro steps: `docs/benchmarking.md` and `docs/corpus-calibration.md`.
 
 ---
 
