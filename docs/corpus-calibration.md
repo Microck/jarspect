@@ -6,7 +6,7 @@ Date: 2026-03-05 (updated from 2026-03-03 initial calibration)
 
 - All malware downloads were handled as archive bytes only (no execution).
 - Malware corpus came from MalwareBazaar (tags: `fractureiser`, `mavenrat`, `maksstealer`, `maksrat`) and was extracted from password-protected zips (`infected`).
-- Only jars with Minecraft mod metadata (fabric.mod.json, mods.toml, neoforge.mods.toml, plugin.yml, mcmod.info) were included in the strict-modlike subset.
+- Only jars with Minecraft mod metadata (fabric.mod.json, mods.toml, META-INF/neoforge.mods.toml, plugin.yml, mcmod.info) were included in the strict-modlike subset.
 - Benign corpus came from the Modrinth top-50 most-downloaded mods.
 
 ## Data Collected

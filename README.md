@@ -47,7 +47,7 @@ POST /scan  (upload_id)
         +-- Bytecode evidence     cafebabe class parsing -> constant pool + invoke resolution
         +-- Byte-array strings    reconstruct new String(new byte[]{...}) hidden values
         +-- YARA per-entry        inflate each entry, scan individually, severity from metadata
-        +-- Metadata checks       fabric.mod.json / mods.toml / neoforge.mods.toml / plugin.yml / MANIFEST.MF
+        +-- Metadata checks       fabric.mod.json / mods.toml / META-INF/neoforge.mods.toml / plugin.yml / MANIFEST.MF
         +-- Capability detectors  8 detectors (exec, network, dynamic load, fs/jar modify,
         |                         persistence, deserialization, native/JNI, credential theft)
         +-- Profile builder       structured capability profile with extracted artifacts
@@ -228,6 +228,13 @@ These benchmarks are written up like a small study: datasets, configuration, and
 | Modrinth top-50 | 50 | 50 | 0 | 0 | Clean: 100% (92.9-100.0%) |
 
 ### Figures (generated)
+
+These SVGs are committed so the README contains the actual benchmark visuals (no external dashboard required).
+
+What to look for:
+- Verdict distribution: perfect separation on this benchmark (malware -> MALICIOUS, benign -> CLEAN).
+- Method attribution: most malware is guaranteed by the static override layer rather than relying on the AI alone.
+- Capability prevalence + intersections: malware clusters on a specific capability combination (dynamic loading + network + filesystem).
 
 <img alt="Baseline verdict distribution" src="docs/benchmarks/baseline-verdict-distribution.svg" width="920" />
 
@@ -624,7 +631,7 @@ src/
     classfile_evidence.rs               cafebabe class parsing, constant-pool + invoke resolution
     byte_array_strings.rs               new String(new byte[]{...}) reconstruction state machine
     evidence.rs                         EvidenceIndex for detector lookups
-    metadata.rs                         fabric.mod.json / mods.toml / neoforge.mods.toml / plugin.yml / MANIFEST.MF
+    metadata.rs                         fabric.mod.json / mods.toml / META-INF/neoforge.mods.toml / plugin.yml / MANIFEST.MF
     yara.rs                             per-entry YARA scanning with rulepack separation
   detectors/
     mod.rs                              detector runner and exports

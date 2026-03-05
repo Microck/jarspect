@@ -41,7 +41,7 @@ Notes:
 Use this when you already have jars (for example `corpus/benign` or a downloaded malware set).
 
 ```bash
-bash scripts/scan-local-dir.sh benign corpus/benign
+DATASET=benign bash scripts/scan-local-dir.sh corpus/benign
 ```
 
 Output run directory:
@@ -99,7 +99,7 @@ bun scripts/select-malwarebazaar-dataset.ts \
   --output .local-data/malwarebazaar/mc-malware-batch-strict-modlike-jars
 ```
 
-The script uses `zipinfo` to check each jar for mod metadata entries (`fabric.mod.json`, `mods.toml`, `neoforge.mods.toml`, `plugin.yml`, `mcmod.info`) and creates symlinks for matching jars. From 84 total jars, this typically produces ~70 strict mod-like samples.
+The script uses `zipinfo` to check each jar for mod metadata entries (`fabric.mod.json`, `mods.toml`, `META-INF/neoforge.mods.toml`, `plugin.yml`, `mcmod.info`) and creates symlinks for matching jars. From 84 total jars, this typically produces ~70 strict mod-like samples.
 
 ### Scanning the malware corpus
 
