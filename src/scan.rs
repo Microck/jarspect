@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use tokio::fs;
-use tracing::warn;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::analysis;
@@ -58,10 +58,25 @@ pub async fn run_scan(
         anyhow::bail!("Upload not found")
     }
 
+    let scan_id = build_scan_id(scan_id_override)?;
+    info!(
+        upload_id = %request.upload_id,
+        scan_id = %scan_id,
+        "scan started"
+    );
+
     let bytes = fs::read(&upload_path)
         .await
         .with_context(|| format!("Failed to read upload: {}", upload_path.display()))?;
     let sha256_hash = format!("{:x}", Sha256::digest(bytes.as_slice()));
+    let jar_size = bytes.len();
+    info!(
+        upload_id = %request.upload_id,
+        scan_id = %scan_id,
+        jar_size_bytes = jar_size,
+        sha256 = %sha256_hash,
+        "upload loaded"
+    );
 
     let mb_mode = malwarebazaar_match_mode();
     let malwarebazaar_match = if malwarebazaar_hash_match_enabled() {
@@ -224,23 +239,47 @@ pub async fn run_scan(
         }
     };
 
+    let class_count = entries
+        .iter()
+        .filter(|entry| entry.path.ends_with(".class"))
+        .count();
+
     let intake = IntakeResult {
         upload_id: request.upload_id.clone(),
         storage_path: upload_path.to_string_lossy().into_owned(),
         file_count: entries.len(),
-        class_file_count: entries
-            .iter()
-            .filter(|entry| entry.path.ends_with(".class"))
-            .count(),
+        class_file_count: class_count,
     };
 
+    info!(
+        upload_id = %request.upload_id,
+        scan_id = %scan_id,
+        file_count = intake.file_count,
+        class_count,
+        "archive intake complete"
+    );
+
     let bytecode_evidence = Some(analysis::extract_bytecode_evidence(&entries));
+
+    info!(
+        upload_id = %request.upload_id,
+        scan_id = %scan_id,
+        "static analysis started"
+    );
     let static_findings = crate::run_static_analysis(
         &entries,
         bytecode_evidence.as_ref(),
         &state.signatures,
         &state.yara_rulepacks,
     )?;
+
+    info!(
+        upload_id = %request.upload_id,
+        scan_id = %scan_id,
+        matches_count = static_findings.matches.len(),
+        "static analysis complete"
+    );
+
     let capability_profile = profile::build_profile(
         &static_findings,
         &entries,
@@ -281,31 +320,61 @@ pub async fn run_scan(
 
     let (mut ai_verdict, mut method) = match state.ai_config.as_ref() {
         Some(ai_config) => match verdict::ai_verdict(&capability_profile, &static_findings, ai_config).await {
-            Ok(verdict) => (verdict, "ai_verdict".to_string()),
+            Ok(verdict) => {
+                info!(
+                    upload_id = %request.upload_id,
+                    scan_id = %scan_id,
+                    result = %verdict.result,
+                    confidence = verdict.confidence,
+                    risk_score = verdict.risk_score,
+                    "AI verdict determined"
+                );
+                (verdict, "ai_verdict".to_string())
+            },
             Err(error) => {
                 warn!(error = %error, "AI verdict failed; falling back to heuristic verdict");
-                (
-                    verdict::heuristic_verdict(
-                        &static_findings,
-                        &capability_profile,
-                        "AI verdict failed.",
-                    ),
-                    "heuristic_fallback".to_string(),
-                )
+                let verdict = verdict::heuristic_verdict(
+                    &static_findings,
+                    &capability_profile,
+                    "AI verdict failed.",
+                );
+                info!(
+                    upload_id = %request.upload_id,
+                    scan_id = %scan_id,
+                    result = %verdict.result,
+                    confidence = verdict.confidence,
+                    risk_score = verdict.risk_score,
+                    "heuristic verdict determined"
+                );
+                (verdict, "heuristic_fallback".to_string())
             }
         },
-        None => (
-            verdict::heuristic_verdict(
+        None => {
+            let verdict = verdict::heuristic_verdict(
                 &static_findings,
                 &capability_profile,
                 "AI configuration missing.",
-            ),
-            "heuristic_fallback".to_string(),
-        ),
+            );
+            info!(
+                upload_id = %request.upload_id,
+                scan_id = %scan_id,
+                result = %verdict.result,
+                confidence = verdict.confidence,
+                risk_score = verdict.risk_score,
+                "heuristic verdict determined (no AI)"
+            );
+            (verdict, "heuristic_fallback".to_string())
+        },
     };
 
     if let Some(reason) = high_confidence_static_reason(&static_findings) {
         if ai_verdict.result != "MALICIOUS" {
+            info!(
+                upload_id = %request.upload_id,
+                scan_id = %scan_id,
+                reason,
+                "static override applied"
+            );
             ai_verdict.result = "MALICIOUS".to_string();
             ai_verdict.confidence = ai_verdict.confidence.max(0.9);
             ai_verdict.risk_score = ai_verdict.risk_score.max(90);
@@ -318,7 +387,7 @@ pub async fn run_scan(
     }
 
     let response = ScanRunResponse {
-        scan_id: build_scan_id(scan_id_override)?,
+        scan_id: scan_id,
         sha256: Some(sha256_hash),
         verdict: Verdict {
             result: ai_verdict.result,
@@ -337,8 +406,18 @@ pub async fn run_scan(
         intake,
     };
 
-        persist_scan_result(state, &response).await?;
-        Ok(response)
+    info!(
+        upload_id = %request.upload_id,
+        scan_id = %response.scan_id,
+        result = %response.verdict.result,
+        method = %response.verdict.method,
+        confidence = response.verdict.confidence,
+        risk_score = response.verdict.risk_score,
+        "scan complete"
+    );
+
+    persist_scan_result(state, &response).await?;
+    Ok(response)
 }
 
 fn best_effort_text(bytes: &[u8]) -> Option<String> {
@@ -407,7 +486,7 @@ async fn lookup_malwarebazaar(
     match malwarebazaar::check_hash(sha256_hash, api_key).await {
         Ok(result) => result,
         Err(error) => {
-            warn!(error = %error, "MalwareBazaar lookup failed; continuing with local analysis");
+            warn!(error = %error, sha256 = %sha256_hash, "MalwareBazaar lookup failed; continuing with local analysis");
             None
         }
     }

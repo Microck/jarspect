@@ -5,6 +5,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info, warn};
 use yara_x::Compiler;
 
 pub mod analysis;
@@ -444,13 +445,17 @@ pub fn load_signatures(
 
     for pack in packs {
         let path = signatures_path_for_pack(cwd, pack.as_str());
+        debug!(path = %path.display(), pack = %pack.as_str(), "loading signature corpus");
         let payload = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read signature corpus: {}", path.display()))?;
         let mut parsed: Vec<SignatureDefinition> = serde_json::from_str(&payload)
             .with_context(|| format!("Invalid signature JSON: {}", path.display()))?;
+        let count = parsed.len();
         signatures.append(&mut parsed);
+        info!(pack = %pack.as_str(), count, "loaded signature corpus");
     }
 
+    info!(total_signatures = signatures.len(), "signature loading complete");
     Ok(signatures)
 }
 
@@ -462,18 +467,26 @@ pub fn load_yara_rules(
 
     for pack in packs {
         let path = yara_path_for_pack(cwd, pack.as_str());
+        debug!(path = %path.display(), pack = %pack.as_str(), "loading YARA rules");
         let source = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read YARA rules: {}", path.display()))?;
         let mut compiler = Compiler::new();
         compiler
             .add_source(source.as_str())
             .with_context(|| format!("Failed compiling YARA rules from {}", path.display()))?;
+        let rules = compiler.build();
+        let rule_count = rules.iter().count();
         loaded_rulepacks.push(analysis::YaraRulepack {
             kind: *pack,
-            rules: compiler.build(),
+            rules,
         });
+        info!(pack = %pack.as_str(), rule_count, "compiled YARA rules");
     }
 
+    info!(
+        total_rulepacks = loaded_rulepacks.len(),
+        "YARA rule loading complete"
+    );
     Ok(loaded_rulepacks)
 }
 

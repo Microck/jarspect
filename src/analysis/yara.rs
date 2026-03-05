@@ -1,4 +1,5 @@
 use anyhow::Result;
+use tracing::{debug, info};
 use yara_x::{MetaValue, Rule, Rules, Scanner};
 
 use crate::analysis::ArchiveEntry;
@@ -57,25 +58,47 @@ pub fn scan_yara_rulepacks(
     packs: &[YaraRulepack],
 ) -> Result<Vec<(String, YaraFinding)>> {
     let mut findings = Vec::new();
+    let total_entries = entries.len();
 
     for pack in packs {
+        debug!(
+            pack = %pack.kind.as_str(),
+            entries_count = total_entries,
+            "YARA scan started"
+        );
+
         for entry in entries {
             let mut scanner = Scanner::new(&pack.rules);
             let scan_results = scanner.scan(entry.bytes.as_slice())?;
             for rule in scan_results.matching_rules() {
+                let severity = derive_rule_severity(&rule, pack.kind);
+                debug!(
+                    rule_id = rule.identifier(),
+                    severity,
+                    pack = %pack.kind.as_str(),
+                    entry_path = %entry.path,
+                    "YARA rule matched"
+                );
                 findings.push((
                     entry.path.clone(),
                     YaraFinding {
                         pack: pack.kind,
                         rule_identifier: rule.identifier().to_string(),
-                        severity: derive_rule_severity(&rule, pack.kind).to_string(),
+                        severity: severity.to_string(),
                         evidence: build_match_evidence(&rule),
                     },
                 ));
             }
         }
+
+        debug!(
+            pack = %pack.kind.as_str(),
+            matches_count = findings.len(),
+            "YARA scan complete"
+        );
     }
 
+    info!(total_findings = findings.len(), "YARA scan complete");
     Ok(findings)
 }
 
@@ -174,7 +197,7 @@ fn build_match_evidence(rule: &Rule<'_, '_>) -> String {
 mod tests {
     use yara_x::Compiler;
 
-    use super::{RulepackKind, YaraRulepack, scan_yara_rulepacks};
+    use super::{scan_yara_rulepacks, RulepackKind, YaraRulepack};
     use crate::analysis::ArchiveEntry;
 
     #[test]

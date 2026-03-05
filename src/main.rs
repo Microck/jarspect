@@ -11,7 +11,7 @@ use axum::{Json, Router};
 use serde_json::Value;
 use tokio::fs;
 use tower_http::services::ServeDir;
-use tracing::info;
+use tracing::{debug, info};
 use uuid::Uuid;
 
 use jarspect::verdict::AiConfig;
@@ -192,6 +192,9 @@ async fn upload(
     State(state): State<AppState>,
     mut multipart: Multipart,
 ) -> Result<Json<Value>, AppError> {
+    let upload_id = Uuid::new_v4().simple().to_string();
+    info!(upload_id = %upload_id, "upload request received");
+
     let mut filename = None;
     let mut bytes = None;
 
@@ -221,11 +224,17 @@ async fn upload(
     }
     let content = bytes.ok_or_else(|| AppError::bad_request("Missing upload file bytes"))?;
 
-    let upload_id = Uuid::new_v4().simple().to_string();
     let output_path = state.uploads_dir.join(format!("{upload_id}.jar"));
     fs::write(&output_path, &content)
         .await
         .map_err(|e| AppError::internal(format!("Failed to persist upload: {e}")))?;
+
+    info!(
+        upload_id = %upload_id,
+        filename,
+        size_bytes = content.len(),
+        "upload persisted"
+    );
 
     Ok(Json(serde_json::json!({
         "upload_id": upload_id,
@@ -239,6 +248,7 @@ async fn scan(
     State(state): State<AppState>,
     Json(request): Json<ScanRequest>,
 ) -> Result<Json<ScanRunResponse>, AppError> {
+    info!(upload_id = %request.upload_id, "scan request received");
     match jarspect::run_scan(&state, request, None).await {
         Ok(scan_payload) => Ok(Json(scan_payload)),
         Err(error) => Err(map_scan_error(error)),

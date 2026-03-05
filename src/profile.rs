@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_yml::Value as YamlValue;
 use toml::Value as TomlValue;
+use tracing::debug;
 
 use crate::analysis::{ArchiveEntry, BytecodeEvidence, BytecodeEvidenceItem};
 use crate::{Indicator, StaticFindings};
@@ -203,21 +204,46 @@ fn detector_evidence_line(finding: &Indicator) -> String {
 
 fn extract_mod_metadata(entries: &[ArchiveEntry]) -> ModMetadata {
     if let Some(metadata) = parse_fabric_metadata(entries) {
+        debug!(
+            loader = "fabric",
+            mod_id = ?metadata.mod_id,
+            name = ?metadata.name,
+            "detected fabric mod metadata"
+        );
         return metadata;
     }
 
     if let Some(metadata) = parse_forge_metadata(entries) {
+        debug!(
+            loader = ?metadata.loader,
+            mod_id = ?metadata.mod_id,
+            name = ?metadata.name,
+            "detected forge/neoforge mod metadata"
+        );
         return metadata;
     }
 
     if let Some(metadata) = parse_mcmod_info(entries) {
+        debug!(
+            loader = "legacy-forge",
+            mod_id = ?metadata.mod_id,
+            name = ?metadata.name,
+            "detected mcmod.info metadata"
+        );
         return metadata;
     }
 
     if let Some(metadata) = parse_spigot_metadata(entries) {
+        debug!(
+            loader = "spigot",
+            mod_id = ?metadata.mod_id,
+            name = ?metadata.name,
+            "detected spigot plugin metadata"
+        );
         return metadata;
     }
 
+    debug!("no mod metadata found");
     ModMetadata::default()
 }
 
