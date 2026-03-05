@@ -227,6 +227,22 @@ These benchmarks are written up like a small study: datasets, configuration, and
 | MalwareBazaar strict-modlike | 70 | 0 | 0 | 70 | Detection: 100% (94.8-100.0%) |
 | Modrinth top-50 | 50 | 50 | 0 | 0 | Clean: 100% (92.9-100.0%) |
 
+### Figures (generated)
+
+<img alt="Baseline verdict distribution" src="docs/benchmarks/baseline-verdict-distribution.svg" width="920" />
+
+<img alt="Baseline method attribution" src="docs/benchmarks/baseline-method-attribution.svg" width="920" />
+
+<img alt="Baseline capability prevalence" src="docs/benchmarks/baseline-capability-prevalence.svg" width="920" />
+
+<img alt="Baseline top capability combos" src="docs/benchmarks/baseline-top-capability-combos.svg" width="920" />
+
+<details>
+  <summary>Ablation figure (AI off / demo vs prod)</summary>
+
+  <img alt="Ablation verdict distribution" src="docs/benchmarks/ablation-verdict-distribution.svg" width="920" />
+</details>
+
 ### Verdict Method Attribution (baseline)
 
 For the malware set, the majority of samples are guaranteed MALICIOUS via the static override layer.
@@ -236,13 +252,6 @@ For the malware set, the majority of samples are guaranteed MALICIOUS via the st
 | MalwareBazaar strict-modlike (n=70) | `static_override(ai_verdict)` | 63 |
 | MalwareBazaar strict-modlike (n=70) | `ai_verdict` | 7 |
 | Modrinth top-50 (n=50) | `ai_verdict` | 50 |
-
-```mermaid
-pie showData
-  title Malware verdict method (n=70)
-  "static_override(ai_verdict)" : 63
-  "ai_verdict" : 7
-```
 
 ### Ablation Study
 
@@ -272,7 +281,16 @@ Capabilities are marked `present` only for medium/high detector signals (low-onl
 
 ### Generating Figures (optional)
 
-If you want nicer charts than Markdown tables, export SVGs from these tools and embed them in the README:
+The SVG figures in `docs/benchmarks/` are generated locally from `aggregate.csv`/`results.csv` using:
+
+```bash
+bun scripts/render-benchmark-figures.ts \
+  --baseline-malware-aggregate <malware-run>/aggregate.csv \
+  --baseline-benign-aggregate <benign-run>/aggregate.csv \
+  --out-dir docs/benchmarks
+```
+
+If you prefer online chart builders (export SVG and embed), these work well:
 
 - Sankey / alluvial: https://app.rawgraphs.io/ or https://sankeymatic.com/
 - UpSet (capability intersections): https://upset.app/

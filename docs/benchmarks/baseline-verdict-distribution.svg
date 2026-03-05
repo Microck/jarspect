@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="186" viewBox="0 0 920 186">
+<style>
+  .t { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; fill: #111; }
+  .title { font-size: 20px; font-weight: 700; }
+  .label { font-size: 13px; }
+  .small { font-size: 12px; fill: #333; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+</style>
+<rect x="0" y="0" width="920" height="186" fill="#fff"/>
+<text class="t title" x="20" y="38">Verdict distribution (baseline)</text>
+<text class="t small" x="20" y="62">Malware detection: 100% (Wilson 95% 94.8%-100.0%); Benign clean: 100% (Wilson 95% 92.9%-100.0%)</text>
+<text class="t label" x="20" y="84" dominant-baseline="middle">MalwareBazaar strict-modlike <tspan class="small">(n=70)</tspan></text>
+<rect x="310" y="74" width="590" height="20" fill="none" stroke="#ddd"/>
+<rect x="310" y="74" width="590" height="20" fill="#c62828"/>
+<text class="t small" x="605" y="84" text-anchor="middle" dominant-baseline="middle" fill="#fff">70</text>
+<text class="t label" x="20" y="118" dominant-baseline="middle">Modrinth top-50 <tspan class="small">(n=50)</tspan></text>
+<rect x="310" y="108" width="590" height="20" fill="none" stroke="#ddd"/>
+<rect x="310" y="108" width="590" height="20" fill="#2e7d32"/>
+<text class="t small" x="605" y="118" text-anchor="middle" dominant-baseline="middle" fill="#fff">50</text>
+<rect x="20" y="150" width="12" height="12" fill="#2e7d32"/>
+<text class="t small" x="36" y="160" dominant-baseline="middle">CLEAN</text>
+<rect x="89" y="150" width="12" height="12" fill="#f9a825"/>
+<text class="t small" x="105" y="160" dominant-baseline="middle">SUSPICIOUS</text>
+<rect x="193" y="150" width="12" height="12" fill="#c62828"/>
+<text class="t small" x="209" y="160" dominant-baseline="middle">MALICIOUS</text>
+</svg>
