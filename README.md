@@ -8,7 +8,7 @@
 
 The name **Jarspect** is a portmanteau of **JAR** (Java Archive) and **Inspect**, reflecting its mission to provide deep, automated inspection of game mods for hidden threats.
 
-Jarspect is an AI-first security scanner for Minecraft mods. It runs a 3-layer pipeline -- MalwareBazaar threat intel, bytecode capability extraction, and Azure OpenAI verdict -- to classify `.jar` files as **CLEAN**, **SUSPICIOUS**, or **MALICIOUS** with full explanations. The bytecode layer parses compiled `.class` files at the constant-pool and instruction level, reconstructs obfuscated strings, resolves method invocations, runs YARA rules per archive entry, and feeds 8 capability detectors into a structured profile that the AI analyzes to produce its verdict.
+Jarspect is an AI-first security scanner for Minecraft mods. It runs a 3-layer pipeline: MalwareBazaar threat intel, bytecode capability extraction, and Azure OpenAI verdict; to classify `.jar` files as **CLEAN**, **SUSPICIOUS**, or **MALICIOUS** with full explanations. The bytecode layer parses compiled `.class` files at the constant-pool and instruction level, reconstructs obfuscated strings, resolves method invocations, runs YARA rules per archive entry, and feeds 8 capability detectors into a structured profile that the AI analyzes to produce its verdict.
 
 ---
 
@@ -18,9 +18,9 @@ In June 2023, **fractureiser** compromised dozens of Minecraft mods on CurseForg
 
 **BleedingPipe** exploited unsafe `ObjectInputStream.readObject()` calls in popular server-side mods, allowing remote code execution on Minecraft servers. **PussyRAT** used reflection to hijack Minecraft session tokens. The **Stargazers Ghost Network** distributed trojanized mods through fake GitHub stars, delivering multi-stage Java-to-.NET info-stealers.
 
-Traditional antivirus and text-based scanners score these threats 0/100 because real malware lives in **compiled bytecode** -- API references exist as structured constant-pool entries, not grep-able plain text. A scanner that doesn't parse `.class` files is blind to all of it. And rule-based scoring alone can't distinguish a rendering mod that calls `Runtime.exec()` for GPU probing from a RAT that calls it to run shell commands.
+Traditional antivirus and text-based scanners score these threats 0/100 because real malware lives in **compiled bytecode**; API references exist as structured constant-pool entries, not grep-able plain text. A scanner that doesn't parse `.class` files is blind to all of it. And rule-based scoring alone can't distinguish a rendering mod that calls `Runtime.exec()` for GPU probing from a RAT that calls it to run shell commands.
 
-Jarspect was built to fix both problems. Every detection technique in the bytecode layer traces back to a real-world malware sample or documented attack vector. The AI verdict layer understands context -- it knows that `sodium` calling `glxinfo` is legitimate GPU detection, not process execution abuse.
+Jarspect was built to fix both problems. Every detection technique in the bytecode layer traces back to a real-world malware sample or documented attack vector. The AI verdict layer understands context; it knows that `sodium` calling `glxinfo` is legitimate GPU detection, not process execution abuse.
 
 ---
 
@@ -56,8 +56,8 @@ POST /scan  (upload_id)
         |   Receives capability profile + extracted URLs, domains, commands, file paths
         |   Returns: CLEAN / SUSPICIOUS / MALICIOUS with confidence, explanation,
         |   and per-capability rationale
-                |
-                v
+        |
+        v
    scan_id persisted at .local-data/scans/{scan_id}.json
         |
 GET /scans/{scan_id}  -> fetch full result at any time
