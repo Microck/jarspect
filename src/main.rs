@@ -209,7 +209,9 @@ async fn upload(
             .await
             .map_err(|e| AppError::bad_request(format!("Failed to read upload: {e}")))?;
         if data.len() > state.upload_max_bytes {
-            return Err(AppError::payload_too_large("Uploaded file exceeds max size"));
+            return Err(AppError::payload_too_large(
+                "Uploaded file exceeds max size",
+            ));
         }
         bytes = Some(data.to_vec());
         break;

@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 
 use crate::analysis::Location;
 
-use super::index::{EvidenceIndex, InvokeHit};
-use super::spec::{contains_any_token, COMMAND_TOKENS};
 use super::DetectorFinding;
+use super::index::{EvidenceIndex, InvokeHit};
+use super::spec::{COMMAND_TOKENS, contains_any_token};
 
 const DETECTOR_ID: &str = "DETC-01.RUNTIME_EXEC";
 

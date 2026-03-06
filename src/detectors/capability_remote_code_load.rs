@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::analysis::Location;
 
-use super::index::EvidenceIndex;
-use super::spec::{extract_urls, matching_token_strings, NETWORK_PRIMITIVE_MATCHERS};
 use super::DetectorFinding;
+use super::index::EvidenceIndex;
+use super::spec::{NETWORK_PRIMITIVE_MATCHERS, extract_urls, matching_token_strings};
 
 const DETECTOR_ID_NETWORK: &str = "DETC-02.REMOTE_CODE_FETCH";
 const DETECTOR_ID_FILESYSTEM: &str = "DETC-04.REMOTE_CODE_WRITE";
@@ -290,9 +290,10 @@ mod tests {
         assert!(ids.contains(DETECTOR_ID_FILESYSTEM));
         assert!(ids.contains(DETECTOR_ID_DYNAMIC));
         assert!(findings.iter().all(|f| f.severity == "high"));
-        assert!(findings.iter().any(|f| f
-            .extracted_file_paths
-            .contains(&"../mods/payload.jar".to_string())));
+        assert!(findings.iter().any(|f| {
+            f.extracted_file_paths
+                .contains(&"../mods/payload.jar".to_string())
+        }));
     }
 
     #[test]

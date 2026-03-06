@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 
 use crate::analysis::Location;
 
-use super::index::{EvidenceIndex, InvokeHit};
-use super::spec::{extract_urls, NETWORK_PRIMITIVE_MATCHERS};
 use super::DetectorFinding;
+use super::index::{EvidenceIndex, InvokeHit};
+use super::spec::{NETWORK_PRIMITIVE_MATCHERS, extract_urls};
 
 const DETECTOR_ID: &str = "DETC-03.DYNAMIC_LOAD";
 
@@ -240,10 +240,12 @@ mod tests {
 
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, "high");
-        assert!(findings[0]
-            .extracted_urls
-            .iter()
-            .any(|url| url == "https://example.invalid/payload.jar"));
+        assert!(
+            findings[0]
+                .extracted_urls
+                .iter()
+                .any(|url| url == "https://example.invalid/payload.jar")
+        );
     }
 
     #[test]

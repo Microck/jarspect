@@ -272,7 +272,8 @@ function renderIndicatorFilters(items) {
       button.className = "filter-btn";
       button.type = "button";
       button.dataset.cat = category;
-      button.textContent = `${category.replace(/_/g, " ")} (${countsByCategory[category]})`;
+      const catLabel = category.replace(/_/g, " ");
+      button.textContent = `${catLabel.charAt(0).toUpperCase() + catLabel.slice(1)} (${countsByCategory[category]})`;
       button.classList.toggle("active", activeFilter === category);
       filtersEl.appendChild(button);
     });
@@ -534,16 +535,26 @@ form.addEventListener("submit", async (event) => {
 
     const result = await runScan(upload.upload_id);
 
-    // Resolve pipeline step states from the result
+    // Stagger pipeline step transitions so the user sees each one resolve
+    const delay = (ms) => new Promise((r) => setTimeout(r, ms));
     const method = (result.verdict && result.verdict.method) || "";
+
     if (method === "malwarebazaar_hash") {
       updatePipelineStep("threat-intel", "done", "Hash match found — MALICIOUS");
+      await delay(350);
       updatePipelineStep("bytecode", "skip", "Short-circuited by hash match");
+      await delay(250);
       updatePipelineStep("ai-verdict", "skip", "Short-circuited by hash match");
     } else {
       updatePipelineStep("threat-intel", "done", "No hash match");
+      await delay(400);
+      updatePipelineStep("bytecode", "running");
+      await delay(500);
       updatePipelineStep("bytecode", "done", `${result.intake?.file_count || "?"} files, ${result.intake?.class_file_count || "?"} classes`);
+      await delay(400);
       if (method.includes("ai_verdict")) {
+        updatePipelineStep("ai-verdict", "running");
+        await delay(500);
         updatePipelineStep("ai-verdict", "done", `Verdict: ${result.verdict?.result || "?"}`);
       } else if (method === "heuristic_fallback") {
         updatePipelineStep("ai-verdict", "skip", "AI unavailable — heuristic used");
@@ -552,11 +563,12 @@ form.addEventListener("submit", async (event) => {
       }
     }
 
+    await delay(300);
     renderResult(result);
     setStatus("Scan complete.", "done");
 
     // Hide pipeline after a beat so the user sees the completed state
-    setTimeout(() => hidePipelineSteps(), 1200);
+    setTimeout(() => hidePipelineSteps(), 1500);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     setStatus(message, "error");
@@ -566,15 +578,4 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-const healthDot = document.getElementById("health-dot");
-fetch("/health")
-  .then((response) => {
-    if (!response.ok || !healthDot) return;
-    healthDot.style.background = "var(--accent)";
-    healthDot.title = "Online";
-  })
-  .catch(() => {
-    if (!healthDot) return;
-    healthDot.style.background = "var(--danger)";
-    healthDot.title = "Unreachable";
-  });
+

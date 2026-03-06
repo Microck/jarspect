@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 
 use crate::analysis::{ArchiveEntry, Location};
 
+use super::DetectorFinding;
 use super::index::{EvidenceIndex, InvokeHit};
 use super::spec::contains_any_token;
-use super::DetectorFinding;
 
 const DETECTOR_ID: &str = "DETC-07.NATIVE_LOAD";
 const ABS_OR_TEMP_PATH_TOKENS: &[&str] = &[

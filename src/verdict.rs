@@ -90,7 +90,10 @@ struct AiYaraHit {
     evidence: String,
 }
 
-fn build_ai_profile_summary(profile: &CapabilityProfile, static_findings: &StaticFindings) -> AiProfileSummary {
+fn build_ai_profile_summary(
+    profile: &CapabilityProfile,
+    static_findings: &StaticFindings,
+) -> AiProfileSummary {
     let extracted = collect_extracted_artifacts(static_findings);
 
     let matched_patterns = collect_match_ids(static_findings, "pattern", 12);
@@ -328,47 +331,48 @@ pub async fn ai_verdict(
 
     let system_prompt = concat!(
         "You are a senior malware analyst specializing in Minecraft Java mods (.jar files). ",
-        "Your primary mission is to CATCH MALWARE. Missing real malware is worse than a false positive, ",
-        "but do not label popular/legitimate mods as malware based on generic primitives alone. ",
         "Classify the provided capability profile into exactly one of CLEAN, SUSPICIOUS, MALICIOUS.\n\n",
-        "MALICIOUS indicators (any ONE of these is sufficient for MALICIOUS):\n",
-        "- Credential theft capability (reading browser cookies, Discord tokens, session files, crypto wallets)\n",
-        "- Network exfiltration combined with filesystem access or credential access\n",
-        "- Process/command execution combined with extracted_commands showing real command lines (powershell/cmd/wget/curl), suspicious domains/URLs, credential theft, persistence, or stealthy obfuscation\n",
-        "- Persistence mechanisms (scheduled tasks, startup entries, registry modification)\n",
-        "- Native code loading (JNI/DLL loading) combined with network, credential, or persistence capabilities\n",
-        "- Obfuscation patterns (e.g. long base64 blobs / string encryption) combined with staged loader behavior (Base64 decode, dynamic loading, or suspicious network evidence)\n",
-        "- Reconstructed strings containing Discord webhook URLs, suspicious C2-like URLs, or clear exfiltration targets\n",
-        "- Any YARA rule hit with severity high or critical\n\n",
-        "LEGITIMATE mod patterns that are NOT inherently malicious:\n",
-        "- Runtime.exec used for GPU/hardware probing (common in rendering mods like Sodium/Iris)\n",
-        "- ProcessBuilder/Runtime.exec used to invoke ffmpeg/encoders for replay/video mods\n",
-        "- Class.forName / reflection for dependency injection or mod compatibility layers\n",
-        "- Dynamic class loading for mod plugin systems\n",
-        "- Network access limited to version checking, mod update APIs, or analytics\n",
-        "- Filesystem access for config files, caches, or resource packs\n\n",
+        "=== STEP 1: CHECK LEGITIMATE MOD PATTERNS FIRST (mandatory) ===\n",
+        "Before evaluating malicious indicators, you MUST check whether the mod matches known legitimate patterns. ",
+        "If it does, classify as CLEAN and skip Step 2.\n\n",
+        "LEGITIMATE mod patterns (classify as CLEAN when matched):\n",
+        "- Performance/rendering mods (OptiFine, Sodium, Iris, Lithium, Phosphor, etc.) routinely combine ALL of: execution, native loading, dynamic class loading, filesystem access, and network access. This combination is EXPECTED and NORMAL. Classify as CLEAN.\n",
+        "- Runtime.exec / ProcessBuilder used for GPU/hardware probing, shader compilation, or ffmpeg — these appear as DETC-01.RUNTIME_EXEC but are standard in rendering mods.\n",
+        "- URLClassLoader / dynamic class loading (DETC-03) used for mod compatibility layers, plugin systems, or launch wrappers (e.g. LaunchClassLoader, MixinLoader). This is normal infrastructure, not malware.\n",
+        "- Remote code loading patterns (DETC-03.REMOTE_CODE_LOAD, DETC-04.REMOTE_CODE_WRITE) in launch wrapper classes (LaunchClassLoader, FMLTweaker) are standard Minecraft mod loading infrastructure.\n",
+        "- Network access (DETC-02) limited to version checking, mod update APIs, asset downloads, or analytics. Check extracted_urls/extracted_domains — if they point to known mod infrastructure (optifine.net, minecraft.net, forge, fabric, modrinth, curseforge, etc.), this is benign.\n",
+        "- Filesystem access for config files, caches, shader packs, or resource packs.\n",
+        "- Native code loading (JNI) for OpenGL/LWJGL rendering acceleration.\n",
+        "- When class paths contain known mod namespaces (optifine, net/optifine, net/minecraft/launchwrapper, cpw/mods, net/fabricmc, net/minecraftforge), treat the mod as legitimate infrastructure.\n",
+        "- When mod_metadata identifies a known ecosystem (Forge, Fabric, OptiFine, etc.), default to CLEAN unless Step 2 finds CONCRETE malware-specific evidence.\n\n",
+        "=== STEP 2: CHECK MALICIOUS INDICATORS (only if Step 1 did NOT match) ===\n",
+        "MALICIOUS requires CONCRETE malware-specific evidence, not just capability combinations:\n",
+        "- Credential theft: reading browser cookies, Discord tokens, session files, crypto wallets (check for browser paths, token file paths, wallet directories in evidence)\n",
+        "- Data exfiltration: network access TO suspicious C2 domains, Discord webhook URLs, or pastebin-like services combined with credential/filesystem access\n",
+        "- Persistence: scheduled tasks, startup entries, registry modification (not just filesystem writes)\n",
+        "- Obfuscation + staged loading: base64 decode + dynamic loading + suspicious URLs/domains (not just base64 patterns alone)\n",
+        "- YARA rule hits with severity high or critical\n",
+        "- Reconstructed strings containing Discord webhook URLs, C2 endpoints, or exfiltration targets\n\n",
+        "CRITICAL: The combination of execution + network + dynamic loading + filesystem WITHOUT any of the above concrete malware indicators is NOT malicious. ",
+        "Many legitimate mods have all of these capabilities. You MUST find credential theft, suspicious domains, persistence, or exfiltration evidence to classify as MALICIOUS.\n\n",
+        "=== CLASSIFICATION RULES ===\n",
+        "CLEAN: Legitimate mod patterns from Step 1 matched, OR only standard capabilities with no malware-specific evidence.\n",
+        "SUSPICIOUS: Genuinely ambiguous — some concerning signals but no definitive malware evidence. Cite what would upgrade/downgrade.\n",
+        "MALICIOUS: Concrete malware-specific evidence from Step 2 (credential theft, C2 domains, persistence, exfiltration).\n\n",
         "Important interpretation rules:\n",
-        "- Unsafe deserialization findings are vulnerability-risk signals, not malware by themselves. Do NOT label SUSPICIOUS solely because deserialization is present.\n",
-        "- Local/private URLs/domains (localhost, 127.0.0.1, 10.x.x.x, 192.168.x.x, 172.16-31.x.x) are low-signal and common in testing/integration code.\n",
-        "- Do NOT infer specific shell usage (PowerShell/cmd) from class names or error strings. Only treat execution as command-driven when extracted_commands contains a plausible command line.\n\n",
-        "CLEAN: Only standard mod capabilities, recognized loader metadata, no threatening capability combinations.\n",
-        "If mod_metadata.loader is missing/unknown AND mod_id/name are missing, default to SUSPICIOUS unless you can clearly justify why it's a legitimate mod/library artifact.\n",
-        "SUSPICIOUS: Use only when evidence is genuinely ambiguous AND you can cite specific concrete evidence items.\n",
-        "MALICIOUS: Clear malicious capability combinations or known malware indicators.\n\n",
-        "Key principle: A SINGLE capability in isolation (like execution OR network OR native loading alone) is often legitimate in mods. ",
-        "MALICIOUS requires COMBINATIONS of concerning capabilities or clear malware-specific indicators.\n\n",
+        "- extracted_commands: Only treat execution as malicious when extracted_commands contains actual shell commands (powershell, cmd, wget, curl with arguments). Class names or method references are NOT commands.\n",
+        "- Unsafe deserialization is a vulnerability signal, not malware evidence.\n",
+        "- Local/private URLs (localhost, 127.0.0.1, 10.x, 192.168.x) are testing artifacts, not C2.\n",
+        "- OBF-BASE64 pattern matches are common in benign mods/libraries; only meaningful with staged loader evidence.\n",
+        "- Missing mod_metadata alone does not make a mod MALICIOUS — many legitimate mods have incomplete metadata.\n\n",
         "Explanation requirements:\n",
-        "- Always cite the concrete evidence you relied on (mention at least one capability evidence line containing a class path).\n",
-        "- If networking/execution/filesystem are present, use extracted_urls / extracted_domains / extracted_commands / extracted_file_paths to justify why it is benign vs suspicious vs malicious.\n",
-        "- Consider matched_patterns / matched_signatures: OBF-BASE64 is a LOW-SIGNAL heuristic and is common in benign mods/libraries; treat it as meaningful only when paired with Base64 decode, dynamic loading, missing mod metadata, or suspicious URLs/domains.\n",
-        "- Consider low_signal_indicators: malware often computes URLs at runtime, so networking primitives without literal URLs can still matter when combined with obfuscation, dynamic loading, or missing mod metadata.\n",
-        "- If you output SUSPICIOUS, state what additional evidence would upgrade to MALICIOUS or downgrade to CLEAN.\n\n",
-        "Output requirements:\n",
-        "- Return strict JSON (no markdown, no extra keys) with keys: verdict, confidence (0..1), risk_score (0..100), explanation, capabilities_assessment.\n",
-        "- explanation MUST be a single short sentence (<= 300 characters).\n",
-        "- capabilities_assessment MUST be an object mapping each of these 8 keys to a short STRING rationale (<= 120 characters each): ",
+        "- Cite concrete evidence items (class paths, URLs, domains). Do not make vague claims.\n",
+        "- If capabilities match legitimate mod patterns, say so explicitly.\n",
+        "- If SUSPICIOUS, state what would upgrade to MALICIOUS or downgrade to CLEAN.\n\n",
+        "Output: strict JSON with keys: verdict, confidence (0..1), risk_score (0..100), explanation (<= 300 chars), capabilities_assessment.\n",
+        "capabilities_assessment: object mapping each of these 8 keys to a short STRING rationale (<= 120 chars each): ",
         "network, dynamic_loading, execution, credential_theft, persistence, native_loading, filesystem, deserialization.\n",
-        "- Do NOT nest objects inside capabilities_assessment. Do NOT include booleans there."
+        "No nested objects, no booleans in capabilities_assessment, no markdown."
     );
     let summary = build_ai_profile_summary(profile, static_findings);
     let user_prompt = format!(
@@ -405,7 +409,8 @@ pub async fn ai_verdict(
             Err(error) => {
                 transient_attempts = transient_attempts.saturating_add(1);
                 if transient_attempts <= MAX_TRANSIENT_ATTEMPTS {
-                    let backoff = Duration::from_secs(2_u64.saturating_mul(transient_attempts as u64));
+                    let backoff =
+                        Duration::from_secs(2_u64.saturating_mul(transient_attempts as u64));
                     tracing::warn!(
                         api_calls,
                         transient_attempts,
@@ -433,7 +438,8 @@ pub async fn ai_verdict(
             Err(error) => {
                 transient_attempts = transient_attempts.saturating_add(1);
                 if transient_attempts <= MAX_TRANSIENT_ATTEMPTS {
-                    let backoff = Duration::from_secs(2_u64.saturating_mul(transient_attempts as u64));
+                    let backoff =
+                        Duration::from_secs(2_u64.saturating_mul(transient_attempts as u64));
                     tracing::warn!(
                         api_calls,
                         transient_attempts,
@@ -461,8 +467,7 @@ pub async fn ai_verdict(
                     body = %payload,
                     "AI rate limited for too long; aborting"
                 );
-                anyhow::bail!("AI rate limited for too long (429)"
-                );
+                anyhow::bail!("AI rate limited for too long (429)");
             }
 
             tracing::warn!(api_calls, wait_secs, body = %payload, "AI rate limited (429); waiting then retrying");
@@ -497,7 +502,8 @@ pub async fn ai_verdict(
                     continue;
                 }
 
-                return Err(error).context("AI response content was not valid JSON verdict payload");
+                return Err(error)
+                    .context("AI response content was not valid JSON verdict payload");
             }
         };
 
@@ -654,8 +660,8 @@ mod tests {
     use std::collections::{BTreeMap, HashMap};
 
     use super::heuristic_verdict;
-    use crate::{Indicator, StaticFindings};
     use crate::profile::{CapabilityProfile, ModMetadata};
+    use crate::{Indicator, StaticFindings};
 
     fn empty_profile() -> CapabilityProfile {
         CapabilityProfile {

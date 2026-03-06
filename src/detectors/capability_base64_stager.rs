@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::analysis::Location;
 
-use super::index::EvidenceIndex;
-use super::spec::{extract_urls, NETWORK_PRIMITIVE_MATCHERS};
 use super::DetectorFinding;
+use super::index::EvidenceIndex;
+use super::spec::{NETWORK_PRIMITIVE_MATCHERS, extract_urls};
 
 const DETECTOR_ID: &str = "DETC-03.BASE64_STAGER";
 
@@ -189,9 +189,18 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
 
     let rationale = format!(
         "Found long base64-like payload(s) with Base64 decode primitive(s) ({}) and dynamic code loading primitive(s) ({}). Network primitives observed: ({}).",
-        matched_base64_primitives.into_iter().collect::<Vec<_>>().join(", "),
-        matched_dynamic_primitives.into_iter().collect::<Vec<_>>().join(", "),
-        matched_network_primitives.into_iter().collect::<Vec<_>>().join(", "),
+        matched_base64_primitives
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(", "),
+        matched_dynamic_primitives
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(", "),
+        matched_network_primitives
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(", "),
     );
 
     vec![DetectorFinding {

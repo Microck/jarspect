@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
-use super::index::EvidenceIndex;
 use super::DetectorFinding;
+use super::index::EvidenceIndex;
 
 const DETECTOR_ID: &str = "DETC-06.UNSAFE_DESERIALIZATION";
 

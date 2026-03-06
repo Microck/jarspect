@@ -2,9 +2,9 @@ use std::collections::BTreeSet;
 
 use crate::analysis::Location;
 
-use super::index::{EvidenceIndex, InvokeHit};
-use super::spec::{contains_any_token, extract_urls, NETWORK_PRIMITIVE_MATCHERS};
 use super::DetectorFinding;
+use super::index::{EvidenceIndex, InvokeHit};
+use super::spec::{NETWORK_PRIMITIVE_MATCHERS, contains_any_token, extract_urls};
 
 const DETECTOR_ID: &str = "DETC-02.DISCORD_WEBHOOK";
 
@@ -69,7 +69,10 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let rationale = if has_correlated_network {
         format!(
             "Found Discord webhook URL marker(s) with correlated network primitive(s) ({}) in the same class.",
-            matched_primitives.into_iter().collect::<Vec<_>>().join(", ")
+            matched_primitives
+                .into_iter()
+                .collect::<Vec<_>>()
+                .join(", ")
         )
     } else {
         "Found Discord webhook URL marker(s) without correlated network primitives in the same class."

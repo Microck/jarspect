@@ -41,10 +41,7 @@ fn malwarebazaar_hash_match_enabled() -> bool {
         return true;
     }
 
-    !(normalized == "0"
-        || normalized == "false"
-        || normalized == "no"
-        || normalized == "off")
+    !(normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off")
 }
 
 pub async fn run_scan(
@@ -72,39 +69,39 @@ pub async fn run_scan(
 
     if mb_mode == MalwareBazaarMatchMode::ShortCircuit {
         if let Some(known_malware) = malwarebazaar_match.clone() {
-        let explanation = match known_malware.family.as_deref() {
-            Some(family) => format!("Known malware detected by hash match: {family}."),
-            None => "Known malware detected by hash match in MalwareBazaar.".to_string(),
-        };
+            let explanation = match known_malware.family.as_deref() {
+                Some(family) => format!("Known malware detected by hash match: {family}."),
+                None => "Known malware detected by hash match in MalwareBazaar.".to_string(),
+            };
 
-        let response = ScanRunResponse {
-            scan_id: build_scan_id(scan_id_override)?,
-            sha256: Some(sha256_hash),
-            verdict: Verdict {
-                result: "MALICIOUS".to_string(),
-                confidence: 1.0,
-                risk_score: 100,
-                method: "malwarebazaar_hash".to_string(),
-                explanation,
-                capabilities_assessment: std::collections::BTreeMap::new(),
-            },
-            malwarebazaar: Some(known_malware),
-            static_findings: None,
-            capabilities: None,
-            yara_hits: None,
-            metadata: None,
-            profile: None,
-            intake: IntakeResult {
-                upload_id: request.upload_id.clone(),
-                storage_path: upload_path.to_string_lossy().into_owned(),
-                file_count: 0,
-                class_file_count: 0,
-            },
-        };
+            let response = ScanRunResponse {
+                scan_id: build_scan_id(scan_id_override)?,
+                sha256: Some(sha256_hash),
+                verdict: Verdict {
+                    result: "MALICIOUS".to_string(),
+                    confidence: 1.0,
+                    risk_score: 100,
+                    method: "malwarebazaar_hash".to_string(),
+                    explanation,
+                    capabilities_assessment: std::collections::BTreeMap::new(),
+                },
+                malwarebazaar: Some(known_malware),
+                static_findings: None,
+                capabilities: None,
+                yara_hits: None,
+                metadata: None,
+                profile: None,
+                intake: IntakeResult {
+                    upload_id: request.upload_id.clone(),
+                    storage_path: upload_path.to_string_lossy().into_owned(),
+                    file_count: 0,
+                    class_file_count: 0,
+                },
+            };
 
-        persist_scan_result(state, &response).await?;
-        return Ok(response);
-    }
+            persist_scan_result(state, &response).await?;
+            return Ok(response);
+        }
     }
 
     let root_label = format!("{}.jar", request.upload_id);
@@ -160,39 +157,35 @@ pub async fn run_scan(
                 &state.signatures,
                 &state.yara_rulepacks,
             )?;
-            let capability_profile = profile::build_profile(
-                &static_findings,
-                &fallback_entries,
-                None,
-                0,
-                bytes.len(),
-            );
+            let capability_profile =
+                profile::build_profile(&static_findings, &fallback_entries, None, 0, bytes.len());
 
             let forced_malicious_reason = high_confidence_static_reason(&static_findings);
-            let (result, confidence, risk_score, method, explanation) =
-                if let Some(reason) = forced_malicious_reason {
-                    (
-                        "MALICIOUS".to_string(),
-                        0.9,
-                        90,
-                        "archive_fallback_static_override".to_string(),
-                        format!(
-                            "Archive could not be parsed as a valid .jar, but high-confidence static indicators were found ({reason}). Original error: {:#}",
-                            error
-                        ),
-                    )
-                } else {
-                    (
-                        "SUSPICIOUS".to_string(),
-                        0.78,
-                        72,
-                        "archive_validation_failure".to_string(),
-                        format!(
-                            "Archive structure is invalid or intentionally malformed and could not be fully analyzed. Partial static scan ran on raw bytes. Original error: {:#}",
-                            error
-                        ),
-                    )
-                };
+            let (result, confidence, risk_score, method, explanation) = if let Some(reason) =
+                forced_malicious_reason
+            {
+                (
+                    "MALICIOUS".to_string(),
+                    0.9,
+                    90,
+                    "archive_fallback_static_override".to_string(),
+                    format!(
+                        "Archive could not be parsed as a valid .jar, but high-confidence static indicators were found ({reason}). Original error: {:#}",
+                        error
+                    ),
+                )
+            } else {
+                (
+                    "SUSPICIOUS".to_string(),
+                    0.78,
+                    72,
+                    "archive_validation_failure".to_string(),
+                    format!(
+                        "Archive structure is invalid or intentionally malformed and could not be fully analyzed. Partial static scan ran on raw bytes. Original error: {:#}",
+                        error
+                    ),
+                )
+            };
 
             let response = ScanRunResponse {
                 scan_id: build_scan_id(scan_id_override)?,
@@ -280,20 +273,22 @@ pub async fn run_scan(
     }
 
     let (mut ai_verdict, mut method) = match state.ai_config.as_ref() {
-        Some(ai_config) => match verdict::ai_verdict(&capability_profile, &static_findings, ai_config).await {
-            Ok(verdict) => (verdict, "ai_verdict".to_string()),
-            Err(error) => {
-                warn!(error = %error, "AI verdict failed; falling back to heuristic verdict");
-                (
-                    verdict::heuristic_verdict(
-                        &static_findings,
-                        &capability_profile,
-                        "AI verdict failed.",
-                    ),
-                    "heuristic_fallback".to_string(),
-                )
+        Some(ai_config) => {
+            match verdict::ai_verdict(&capability_profile, &static_findings, ai_config).await {
+                Ok(verdict) => (verdict, "ai_verdict".to_string()),
+                Err(error) => {
+                    warn!(error = %error, "AI verdict failed; falling back to heuristic verdict");
+                    (
+                        verdict::heuristic_verdict(
+                            &static_findings,
+                            &capability_profile,
+                            "AI verdict failed.",
+                        ),
+                        "heuristic_fallback".to_string(),
+                    )
+                }
             }
-        },
+        }
         None => (
             verdict::heuristic_verdict(
                 &static_findings,
@@ -337,8 +332,8 @@ pub async fn run_scan(
         intake,
     };
 
-        persist_scan_result(state, &response).await?;
-        Ok(response)
+    persist_scan_result(state, &response).await?;
+    Ok(response)
 }
 
 fn best_effort_text(bytes: &[u8]) -> Option<String> {
@@ -380,15 +375,14 @@ fn high_confidence_static_reason(static_findings: &crate::StaticFindings) -> Opt
             return Some(indicator.id.clone());
         }
 
+        // Only truly high-confidence malware-specific detectors trigger the static
+        // override. Remote code load/fetch/write and dynamic load are too broad — they
+        // fire on legitimate mod loaders (OptiFine LaunchClassLoader, Fabric MixinLoader,
+        // etc.) and should be evaluated by the AI in context instead.
         if indicator.source == "detector"
             && matches!(
                 indicator.id.as_str(),
-                "DETC-03.BASE64_STAGER"
-                    | "DETC-02.REMOTE_CODE_FETCH"
-                    | "DETC-04.REMOTE_CODE_WRITE"
-                    | "DETC-03.REMOTE_CODE_LOAD"
-                    | "DETC-03.DYNAMIC_LOAD"
-                    | "DETC-02.DISCORD_WEBHOOK"
+                "DETC-03.BASE64_STAGER" | "DETC-02.DISCORD_WEBHOOK"
             )
             && matches!(severity.as_str(), "high" | "critical")
         {
@@ -460,7 +454,10 @@ mod tests {
     #[test]
     fn returns_reason_for_high_severity_prod_yara() {
         let f = findings(vec![make_indicator("yara", "YARA-PROD-FOO", "high")]);
-        assert_eq!(high_confidence_static_reason(&f), Some("YARA-PROD-FOO".to_string()));
+        assert_eq!(
+            high_confidence_static_reason(&f),
+            Some("YARA-PROD-FOO".to_string())
+        );
     }
 
     #[test]
@@ -490,7 +487,11 @@ mod tests {
 
     #[test]
     fn returns_reason_for_high_detector_ids() {
-        let f = findings(vec![make_indicator("detector", "DETC-03.BASE64_STAGER", "high")]);
+        let f = findings(vec![make_indicator(
+            "detector",
+            "DETC-03.BASE64_STAGER",
+            "high",
+        )]);
         assert_eq!(
             high_confidence_static_reason(&f),
             Some("DETC-03.BASE64_STAGER".to_string())
@@ -498,11 +499,37 @@ mod tests {
     }
 
     #[test]
-    fn returns_reason_for_dynamic_load_high() {
-        let f = findings(vec![make_indicator("detector", "DETC-03.DYNAMIC_LOAD", "high")]);
+    fn dynamic_load_no_longer_triggers_static_override() {
+        // DETC-03.DYNAMIC_LOAD is too broad (fires on legitimate mod loaders like
+        // OptiFine LaunchClassLoader) so it is evaluated by AI, not static override.
+        let f = findings(vec![make_indicator(
+            "detector",
+            "DETC-03.DYNAMIC_LOAD",
+            "high",
+        )]);
+        assert_eq!(high_confidence_static_reason(&f), None);
+    }
+
+    #[test]
+    fn remote_code_fetch_no_longer_triggers_static_override() {
+        let f = findings(vec![make_indicator(
+            "detector",
+            "DETC-02.REMOTE_CODE_FETCH",
+            "high",
+        )]);
+        assert_eq!(high_confidence_static_reason(&f), None);
+    }
+
+    #[test]
+    fn discord_webhook_detector_still_triggers_static_override() {
+        let f = findings(vec![make_indicator(
+            "detector",
+            "DETC-02.DISCORD_WEBHOOK",
+            "high",
+        )]);
         assert_eq!(
             high_confidence_static_reason(&f),
-            Some("DETC-03.DYNAMIC_LOAD".to_string())
+            Some("DETC-02.DISCORD_WEBHOOK".to_string())
         );
     }
 }

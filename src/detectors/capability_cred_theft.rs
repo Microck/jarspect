@@ -2,11 +2,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::analysis::Location;
 
+use super::DetectorFinding;
 use super::index::{EvidenceIndex, InvokeHit};
 use super::spec::{
-    contains_any_token, extract_urls, matching_token_strings, NETWORK_PRIMITIVE_MATCHERS,
+    NETWORK_PRIMITIVE_MATCHERS, contains_any_token, extract_urls, matching_token_strings,
 };
-use super::DetectorFinding;
 
 const DETECTOR_ID: &str = "DETC-08.CREDENTIAL_THEFT";
 const CREDENTIAL_TOKEN_MARKERS: &[&str] = &[

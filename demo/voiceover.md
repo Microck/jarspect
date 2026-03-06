@@ -27,7 +27,7 @@ YARA rules scan each inflated entry individually -- not the compressed jar blob.
 
 Layer three sends the full capability profile to Azure OpenAI. The AI analyzes it in context -- it understands that Sodium calling glxinfo is legitimate GPU detection, not process execution abuse. It returns a verdict: CLEAN, SUSPICIOUS, or MALICIOUS, with a confidence score, a risk rating, a prose explanation, and per-capability rationale.
 
-But the AI doesn't get the final word on everything. A static override layer sits on top: if a production YARA rule fires at high severity, or if the dynamic loading detector finds a URLClassLoader with correlated network access in the same class, the verdict is locked to MALICIOUS -- no matter what the AI says. This prevents the AI from downgrading obvious malware.
+But the AI doesn't get the final word on everything. A static override layer sits on top: if a production YARA rule fires at high severity, or if a malware-specific compound detector like a base64 stager or Discord webhook exfiltration triggers at high severity, the verdict is locked to MALICIOUS -- no matter what the AI says. This prevents the AI from downgrading obvious malware.
 
 The results speak for themselves. We benchmarked Jarspect against seventy real malware samples from MalwareBazaar -- Krypton stealers, MaksRAT loaders, PussyRAT, fractureiser variants -- all with Minecraft mod metadata, all scanned with hash matching disabled so the detection layers had to earn the verdict. Seventy out of seventy: MALICIOUS. Then we scanned the fifty most-downloaded mods from Modrinth -- Sodium, Fabric API, Iris, Lithium, all the names you'd recognize. Fifty out of fifty: CLEAN. Zero false positives.
 
@@ -35,4 +35,4 @@ Let me show you a live scan.
 
 I'm uploading a jar through the web UI. The pipeline runs in seconds. The verdict comes back with the AI's assessment, the detection method, the confidence score, and every capability finding traced back to specific class files and bytecode locations. Every finding is explainable.
 
-Jarspect is built in Rust. Seventy-three tests, zero mocks. A single binary that serves the API and the web UI on the same port. Built for the Microsoft AI Dev Days Hackathon twenty twenty-six. Thank you for watching.
+Jarspect is built in Rust. Over seventy tests, zero mocks. A single binary that serves the API and the web UI on the same port. Built for the Microsoft AI Dev Days Hackathon twenty twenty-six. Thank you for watching.

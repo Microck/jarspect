@@ -3,9 +3,9 @@ use std::collections::BTreeSet;
 use crate::analysis::Location;
 use url::Url;
 
-use super::index::{EvidenceIndex, InvokeHit};
-use super::spec::{extract_urls, NETWORK_PRIMITIVE_MATCHERS};
 use super::DetectorFinding;
+use super::index::{EvidenceIndex, InvokeHit};
+use super::spec::{NETWORK_PRIMITIVE_MATCHERS, extract_urls};
 
 const DETECTOR_ID: &str = "DETC-02.NETWORK_PRIMITIVE";
 

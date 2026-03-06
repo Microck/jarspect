@@ -65,7 +65,7 @@ GET /scans/{scan_id}  -> fetch full result at any time
 
 **Key properties:**
 - **AI-first** -- Azure OpenAI (gpt-4o) analyzes the full capability profile and decides the verdict; no rule-based scoring fallback
-- **Static override layer** -- high-confidence static signals (production YARA rules, high-severity detector correlations like `DETC-03.DYNAMIC_LOAD`) override the AI verdict to MALICIOUS via `static_override(ai_verdict)`, preventing the AI from downgrading obvious malware
+- **Static override layer** -- high-confidence static signals (production YARA hits and malware-specific compound detectors) override the AI verdict to MALICIOUS via `static_override(ai_verdict)`, preventing the AI from downgrading obvious malware
 - **Known-malware guaranteed** -- MalwareBazaar hash match short-circuits to MALICIOUS before any other analysis (verdict always uses method `malwarebazaar_hash`)
 - **Reporting-friendly artifacts** -- scan JSON includes top-level `sha256` and (when available) `static_findings` for extracted URLs/domains/paths/commands
 - **Bytecode-native** -- parses `.class` constant pools and resolves `invoke*` instructions instead of running regex over lossy UTF-8
@@ -188,8 +188,7 @@ After the AI (or heuristic fallback) produces its verdict, a final guard runs: i
 
 Signals that trigger the override:
 - Any production YARA rule match (`YARA-PROD-*`) at high/critical severity
-- `DETC-03.DYNAMIC_LOAD` at high/critical (URLClassLoader + correlated network in the same class)
-- `DETC-03.BASE64_STAGER`, `DETC-02.REMOTE_CODE_FETCH`, `DETC-04.REMOTE_CODE_WRITE`, `DETC-03.REMOTE_CODE_LOAD` at high/critical
+- `DETC-03.BASE64_STAGER` at high/critical
 - `DETC-02.DISCORD_WEBHOOK` at high/critical
 - `NET-DISCORD-WEBHOOK` signature match at high/critical
 
@@ -219,7 +218,7 @@ We tested Jarspect against 120 real-world samples — 70 confirmed malware and 5
 
 Perfect separation on this corpus. No false positives, no missed malware.
 
-Of the 70 malware verdicts, 63 were guaranteed by the static override layer (`static_override(ai_verdict)`) — meaning YARA rules or high-confidence detector correlations locked in the MALICIOUS verdict before the AI even had a say. The remaining 7 were caught by the AI alone. All 50 benign mods were classified by `ai_verdict`.
+In our baseline malware corpus, many verdicts were guaranteed by the static override layer (`static_override(ai_verdict)`) — meaning production YARA rules or other high-confidence signals locked in MALICIOUS before the AI even had a say. All 50 benign mods were classified by `ai_verdict`.
 
 <img alt="Baseline verdict distribution" src="docs/benchmarks/baseline-verdict-distribution.svg" width="920" />
 
@@ -236,7 +235,7 @@ The ablation study strips layers away to show what each one is doing:
 | **AI disabled** (prod YARA + heuristic + static override) | 70 MALICIOUS | 43 CLEAN, 7 SUSPICIOUS |
 | **AI + prod YARA disabled** (demo YARA + heuristic + static override) | 66 MALICIOUS, 3 CLEAN, 1 SUSPICIOUS | 39 CLEAN, 10 SUSPICIOUS, 1 MALICIOUS |
 
-The takeaway: the static override layer carries most of the malware detection weight (63/70 samples), but the AI is critical for benign accuracy — without it, 7 benign mods get flagged SUSPICIOUS. The production YARA rules are the difference between catching 66 and 70 malware samples, and between 1 false positive and 0.
+The takeaway: the static override layer carries much of the malware detection weight in the baseline run, but the AI is critical for benign accuracy — without it, benign mods get flagged SUSPICIOUS. The production YARA rules are the difference between catching nearly-all and all malware samples in this corpus.
 
 <details>
   <summary>Ablation figure (AI off / demo vs prod)</summary>
@@ -490,9 +489,60 @@ The single-page console lets you:
 
 ## Architecture
 
-![Architecture diagram](docs/architecture.svg)
+```mermaid
+flowchart TB
+  subgraph Client
+    UI["Browser UI"]
+    CLI["CLI / scripts"]
+  end
 
-> Mermaid source at `docs/architecture.mmd`
+  subgraph Server["Jarspect (Axum server)"]
+    H["GET /health"]
+    UP["POST /upload\n(multipart .jar)"]
+    SC["POST /scan\n(upload_id)"]
+    GET["GET /scans/{scan_id}"]
+  end
+
+  subgraph Storage["Local storage (.local-data)"]
+    UPL[(".local-data/uploads/{upload_id}.jar")]
+    SCS[(".local-data/scans/{scan_id}.json")]
+  end
+
+  subgraph Pipeline["Scan pipeline (src/scan.rs)"]
+    SHA["SHA-256"]
+    MB["Layer 1: MalwareBazaar hash lookup"]
+    STATIC["Layer 2: Bytecode analysis\n(archive traversal + evidence + YARA + detectors)"]
+    PROF["Capability profile"]
+    AI["Layer 3: AI verdict (Azure OpenAI)"]
+    OVR["Static override (high-confidence)\n(prod YARA + malware-specific detectors)"]
+  end
+
+  subgraph External["External services"]
+    MBAPI["MalwareBazaar (abuse.ch)"]
+    AZ["Azure OpenAI"]
+  end
+
+  subgraph Signatures["Signature data"]
+    SIGS["data/signatures/{demo,prod}/"]
+  end
+
+  UI --> UP
+  CLI --> UP
+  UI --> SC
+  CLI --> SC
+  UI --> GET
+  CLI --> GET
+
+  UP -->|write jar| UPL
+  SC -->|read jar| UPL
+
+  SC --> SHA --> MB --> MBAPI
+  MB -->|no match| STATIC
+  STATIC --> SIGS
+  STATIC --> PROF --> AI --> AZ
+  AI --> OVR -->|persist result| SCS
+  GET -->|read result| SCS
+```
 
 The scan pipeline lives in `src/scan.rs` as an orchestrator that runs the 3-layer pipeline. `src/main.rs` is the Axum transport layer.
 
@@ -571,7 +621,7 @@ Verdict object:
 # Check for compile errors
 cargo check
 
-# Run tests (70 unit + 3 integration)
+# Run tests
 cargo test
 
 # Build optimized binary
@@ -623,10 +673,8 @@ data/signatures/
 web/
   index.html                            single-page browser UI
   app.js                                UI logic with verdict rendering
-  styles.css                            UI styles (Geist + JetBrains Mono)
+  styles.css                            UI styles (Geist)
 docs/
-  architecture.mmd                      Mermaid architecture diagram source
-  architecture.svg                      rendered architecture diagram
   corpus-calibration.md                 calibration report from corpus testing
   benchmarking.md                       benchmark workflows and aggregation
   false-positives.md                    FP case studies and fixes
