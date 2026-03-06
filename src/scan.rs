@@ -376,7 +376,7 @@ fn high_confidence_static_reason(static_findings: &crate::StaticFindings) -> Opt
         }
 
         // Only truly high-confidence malware-specific detectors trigger the static
-        // override. Remote code load/fetch/write and dynamic load are too broad — they
+        // override. Remote code load/fetch/write and dynamic load are too broad -- they
         // fire on legitimate mod loaders (OptiFine LaunchClassLoader, Fabric MixinLoader,
         // etc.) and should be evaluated by the AI in context instead.
         if indicator.source == "detector"

@@ -205,9 +205,9 @@ When triggered, the verdict method becomes `static_override(ai_verdict)` (or `st
 
 ## Benchmarks
 
-We tested Jarspect against 120 real-world samples — 70 confirmed malware and 50 popular benign mods — with MalwareBazaar hash matching **disabled** so every verdict had to be earned through bytecode analysis, YARA rules, and AI reasoning rather than a trivial hash lookup.
+We tested Jarspect against 120 real-world samples -- 70 confirmed malware and 50 popular benign mods -- with MalwareBazaar hash matching **disabled** so every verdict had to be earned through bytecode analysis, YARA rules, and AI reasoning rather than a trivial hash lookup.
 
-**Datasets.** The malware corpus is 70 jars from MalwareBazaar, filtered to samples that actually contain Minecraft mod metadata (`fractureiser`, `mavenrat`, `maksstealer`, `maksrat` tags). The benign corpus is the top 50 most-downloaded mods from Modrinth. Both are documented in [`docs/corpus-calibration.md`](docs/corpus-calibration.md). Wilson 95% confidence intervals are reported because 120 samples is honest but not large — we don't want to overclaim.
+**Datasets.** The malware corpus is 70 jars from MalwareBazaar, filtered to samples that actually contain Minecraft mod metadata (`fractureiser`, `mavenrat`, `maksstealer`, `maksrat` tags). The benign corpus is the top 50 most-downloaded mods from Modrinth. Both are documented in [`docs/corpus-calibration.md`](docs/corpus-calibration.md). Wilson 95% confidence intervals are reported because 120 samples is honest but not large -- we don't want to overclaim.
 
 ### Results
 
@@ -218,7 +218,7 @@ We tested Jarspect against 120 real-world samples — 70 confirmed malware and 5
 
 Perfect separation on this corpus. No false positives, no missed malware.
 
-In our baseline malware corpus, many verdicts were guaranteed by the static override layer (`static_override(ai_verdict)`) — meaning production YARA rules or other high-confidence signals locked in MALICIOUS before the AI even had a say. All 50 benign mods were classified by `ai_verdict`.
+In our baseline malware corpus, many verdicts were guaranteed by the static override layer (`static_override(ai_verdict)`) -- meaning production YARA rules or other high-confidence signals locked in MALICIOUS before the AI even had a say. All 50 benign mods were classified by `ai_verdict`.
 
 <img alt="Baseline verdict distribution" src="docs/benchmarks/baseline-verdict-distribution.svg" width="920" />
 
@@ -235,7 +235,7 @@ The ablation study strips layers away to show what each one is doing:
 | **AI disabled** (prod YARA + heuristic + static override) | 70 MALICIOUS | 43 CLEAN, 7 SUSPICIOUS |
 | **AI + prod YARA disabled** (demo YARA + heuristic + static override) | 66 MALICIOUS, 3 CLEAN, 1 SUSPICIOUS | 39 CLEAN, 10 SUSPICIOUS, 1 MALICIOUS |
 
-The takeaway: the static override layer carries much of the malware detection weight in the baseline run, but the AI is critical for benign accuracy — without it, benign mods get flagged SUSPICIOUS. The production YARA rules are the difference between catching nearly-all and all malware samples in this corpus.
+The takeaway: the static override layer carries much of the malware detection weight in the baseline run, but the AI is critical for benign accuracy -- without it, benign mods get flagged SUSPICIOUS. The production YARA rules are the difference between catching nearly-all and all malware samples in this corpus.
 
 <details>
   <summary>Ablation figure (AI off / demo vs prod)</summary>
@@ -245,7 +245,7 @@ The takeaway: the static override layer carries much of the malware detection we
 
 ### Capability fingerprints
 
-Malware and benign mods look very different at the bytecode level. Capabilities are counted only when detectors fire at medium or high severity — low-signal noise is excluded.
+Malware and benign mods look very different at the bytecode level. Capabilities are counted only when detectors fire at medium or high severity -- low-signal noise is excluded.
 
 | Capability | Malware (n=70) | Benign (n=50) |
 |---|---:|---:|

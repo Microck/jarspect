@@ -1,4 +1,4 @@
-/* Jarspect — "Signal" Design
+/* Jarspect -- "Signal" Design
    Taste dials: DESIGN_VARIANCE 8, MOTION_INTENSITY 6, VISUAL_DENSITY 4
    Light mode, single-column, typography-driven, art-gallery spacing
    AI-first verdict UI: CLEAN / SUSPICIOUS / MALICIOUS */
@@ -141,7 +141,7 @@ body {
 #scan-form {
   margin-bottom: 1.25rem;
 }
-/* (spin-icon removed — replaced by typing-dots loader) */
+/* (spin-icon removed -- replaced by typing-dots loader) */
 
 /* ========== Status ========== */
 .status-line {
@@ -599,13 +599,13 @@ details[open] > .explain-toggle .toggle-chevron {
   background: var(--ink-2);
 }
 
-/* ========== Verdict polish — add subtle left accent ========== */
+/* ========== Verdict polish -- add subtle left accent ========== */
 .verdict[data-tier="CLEAN"] { border-left: 3px solid var(--success); }
 .verdict[data-tier="SUSPICIOUS"] { border-left: 3px solid var(--warning); }
 .verdict[data-tier="MALICIOUS"] { border-left: 3px solid var(--danger); }
 .verdict[data-tier="UNKNOWN"] { border-left: 3px solid var(--ink-3); }
 
-/* ========== Fact row — add copy on scan-id ========== */
+/* ========== Fact row -- add copy on scan-id ========== */
 .fact-val-wrap {
   display: flex; align-items: center; gap: 0.35rem;
 }

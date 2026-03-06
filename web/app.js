@@ -540,7 +540,7 @@ form.addEventListener("submit", async (event) => {
     const method = (result.verdict && result.verdict.method) || "";
 
     if (method === "malwarebazaar_hash") {
-      updatePipelineStep("threat-intel", "done", "Hash match found — MALICIOUS");
+      updatePipelineStep("threat-intel", "done", "Hash match found -- MALICIOUS");
       await delay(350);
       updatePipelineStep("bytecode", "skip", "Short-circuited by hash match");
       await delay(250);
@@ -557,7 +557,7 @@ form.addEventListener("submit", async (event) => {
         await delay(500);
         updatePipelineStep("ai-verdict", "done", `Verdict: ${result.verdict?.result || "?"}`);
       } else if (method === "heuristic_fallback") {
-        updatePipelineStep("ai-verdict", "skip", "AI unavailable — heuristic used");
+        updatePipelineStep("ai-verdict", "skip", "AI unavailable -- heuristic used");
       } else {
         updatePipelineStep("ai-verdict", "done");
       }
@@ -577,5 +577,4 @@ form.addEventListener("submit", async (event) => {
     setLoading(false);
   }
 });
-
 
