@@ -185,7 +185,7 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
         return Vec::new();
     }
 
-    extracted_file_paths.extend(base64_samples.into_iter());
+    extracted_file_paths.extend(base64_samples);
 
     let rationale = format!(
         "Found long base64-like payload(s) with Base64 decode primitive(s) ({}) and dynamic code loading primitive(s) ({}). Network primitives observed: ({}).",

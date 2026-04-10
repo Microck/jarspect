@@ -306,9 +306,7 @@ fn load_ai_config() -> Option<AiConfig> {
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| "2024-10-21".to_string());
 
-    if deployment.is_none() {
-        return None;
-    }
+    deployment.as_ref()?;
 
     Some(AiConfig {
         endpoint,

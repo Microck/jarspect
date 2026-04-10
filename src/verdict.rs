@@ -11,6 +11,7 @@ use url::Url;
 use crate::StaticFindings;
 use crate::profile::CapabilityProfile;
 
+/// Configuration for the Azure OpenAI (or compatible) AI verdict endpoint.
 #[derive(Debug, Clone)]
 pub struct AiConfig {
     pub endpoint: String,
@@ -197,10 +198,10 @@ fn collect_extracted_artifacts(static_findings: &StaticFindings) -> ExtractedArt
         if let Some(items) = indicator.extracted_urls.as_ref() {
             for raw in items {
                 urls.insert(truncate_string(raw.as_str(), 220));
-                if let Ok(parsed) = Url::parse(raw.as_str()) {
-                    if let Some(host) = parsed.host_str() {
-                        domains.insert(host.trim().to_ascii_lowercase());
-                    }
+                if let Ok(parsed) = Url::parse(raw.as_str())
+                    && let Some(host) = parsed.host_str()
+                {
+                    domains.insert(host.trim().to_ascii_lowercase());
                 }
             }
         }
@@ -868,10 +869,10 @@ fn parse_verdict_content(content: &str) -> Result<AiVerdictResponse> {
     }
 
     let trimmed = content.trim();
-    if let Some(stripped) = trim_code_fence(trimmed) {
-        if let Some(parsed) = decode_verdict_json(stripped) {
-            return Ok(parsed);
-        }
+    if let Some(stripped) = trim_code_fence(trimmed)
+        && let Some(parsed) = decode_verdict_json(stripped)
+    {
+        return Ok(parsed);
     }
 
     if let Some((start, end)) = json_object_span(trimmed) {

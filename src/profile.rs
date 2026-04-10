@@ -225,10 +225,10 @@ fn jar_layer_depth(path: &str) -> usize {
     path.match_indices("!/").count()
 }
 
-fn find_shallowest_entry<'a, F>(
-    entries: &'a [ArchiveEntry],
+fn find_shallowest_entry<F>(
+    entries: &[ArchiveEntry],
     predicate: F,
-) -> Option<&'a ArchiveEntry>
+) -> Option<&ArchiveEntry>
 where
     F: Fn(&ArchiveEntry) -> bool,
 {

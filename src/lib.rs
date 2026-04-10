@@ -16,6 +16,7 @@ pub mod verdict;
 
 pub use analysis::ArchiveEntry;
 
+/// Shared application state passed to all Axum handlers.
 #[derive(Clone)]
 pub struct AppState {
     pub uploads_dir: PathBuf,
@@ -28,6 +29,7 @@ pub struct AppState {
     pub ai_config: Option<verdict::AiConfig>,
 }
 
+/// Incoming scan request specifying which upload to analyze.
 #[derive(Debug, Deserialize, Clone)]
 pub struct ScanRequest {
     pub upload_id: String,
@@ -44,6 +46,7 @@ pub struct AuthorMetadata {
     pub report_count: Option<u32>,
 }
 
+/// Full scan result returned after analyzing a JAR upload.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScanRunResponse {
     pub scan_id: String,
@@ -65,6 +68,7 @@ pub struct ScanRunResponse {
     pub intake: IntakeResult,
 }
 
+/// Summary of archive intake (file counts and storage info).
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IntakeResult {
     pub upload_id: String,
@@ -73,6 +77,7 @@ pub struct IntakeResult {
     pub class_file_count: usize,
 }
 
+/// Classification verdict produced by AI or heuristic analysis.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Verdict {
     pub result: String,
@@ -84,6 +89,7 @@ pub struct Verdict {
     pub capabilities_assessment: BTreeMap<String, String>,
 }
 
+/// Aggregated findings from pattern, signature, YARA, and detector analysis.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StaticFindings {
     pub matches: Vec<Indicator>,
@@ -94,6 +100,7 @@ pub struct StaticFindings {
     pub analyzed_files: usize,
 }
 
+/// A single finding from the static analysis pipeline.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Indicator {
     pub source: String,

@@ -98,7 +98,7 @@ fn dedup_and_sort(values: &mut Vec<String>) {
 }
 
 fn dedup_locations(locations: &mut Vec<Location>) {
-    locations.sort_by(|left, right| location_key(left).cmp(&location_key(right)));
+    locations.sort_by_key(location_key);
     locations.dedup_by(|left, right| left == right);
 }
 
