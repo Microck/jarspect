@@ -197,11 +197,10 @@ fn collect_extracted_artifacts(static_findings: &StaticFindings) -> ExtractedArt
         if let Some(items) = indicator.extracted_urls.as_ref() {
             for raw in items {
                 urls.insert(truncate_string(raw.as_str(), 220));
-                if let Ok(parsed) = Url::parse(raw.as_str()) {
-                    if let Some(host) = parsed.host_str() {
+                if let Ok(parsed) = Url::parse(raw.as_str())
+                    && let Some(host) = parsed.host_str() {
                         domains.insert(host.trim().to_ascii_lowercase());
                     }
-                }
             }
         }
 
@@ -655,101 +654,6 @@ pub fn heuristic_verdict(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::collections::{BTreeMap, HashMap};
-
-    use super::heuristic_verdict;
-    use crate::profile::{CapabilityProfile, ModMetadata};
-    use crate::{Indicator, StaticFindings};
-
-    fn empty_profile() -> CapabilityProfile {
-        CapabilityProfile {
-            mod_metadata: ModMetadata::default(),
-            capabilities: BTreeMap::new(),
-            yara_hits: Vec::new(),
-            low_signal_indicators: Vec::new(),
-            reconstructed_strings: Vec::new(),
-            suspicious_manifest_entries: Vec::new(),
-            class_count: 0,
-            jar_size_bytes: 0,
-        }
-    }
-
-    fn findings_with(indicator: Indicator) -> StaticFindings {
-        StaticFindings {
-            matches: vec![indicator],
-            counts_by_category: HashMap::new(),
-            counts_by_severity: HashMap::new(),
-            matched_pattern_ids: Vec::new(),
-            matched_signature_ids: Vec::new(),
-            analyzed_files: 1,
-        }
-    }
-
-    #[test]
-    fn network_primitive_medium_is_not_enough_to_be_suspicious() {
-        let findings = findings_with(Indicator {
-            source: "detector".to_string(),
-            id: "DETC-02.NETWORK_PRIMITIVE".to_string(),
-            title: "Outbound networking primitive detected".to_string(),
-            category: "capability".to_string(),
-            severity: "med".to_string(),
-            file_path: Some("Example.class".to_string()),
-            evidence: "java/net/URL.openConnection".to_string(),
-            rationale: "broad".to_string(),
-            evidence_locations: None,
-            extracted_urls: Some(vec!["https://example.invalid".to_string()]),
-            extracted_commands: None,
-            extracted_file_paths: None,
-        });
-
-        let verdict = heuristic_verdict(&findings, &empty_profile(), "no-ai");
-        assert_eq!(verdict.result, "CLEAN");
-    }
-
-    #[test]
-    fn pattern_only_medium_is_not_enough_to_be_suspicious() {
-        let findings = findings_with(Indicator {
-            source: "pattern".to_string(),
-            id: "OBF-BASE64".to_string(),
-            title: "Long base64 blob".to_string(),
-            category: "obfuscation".to_string(),
-            severity: "med".to_string(),
-            file_path: Some("Example.class".to_string()),
-            evidence: "AAAA...".to_string(),
-            rationale: "Broad indicator".to_string(),
-            evidence_locations: None,
-            extracted_urls: None,
-            extracted_commands: None,
-            extracted_file_paths: None,
-        });
-
-        let verdict = heuristic_verdict(&findings, &empty_profile(), "no-ai");
-        assert_eq!(verdict.result, "CLEAN");
-    }
-
-    #[test]
-    fn high_signal_pattern_still_makes_it_suspicious() {
-        let findings = findings_with(Indicator {
-            source: "pattern".to_string(),
-            id: "NET-DISCORD-WEBHOOK".to_string(),
-            title: "Discord webhook endpoint".to_string(),
-            category: "network".to_string(),
-            severity: "high".to_string(),
-            file_path: Some("Example.class".to_string()),
-            evidence: "https://discord.com/api/webhooks/123/abc".to_string(),
-            rationale: "High signal".to_string(),
-            evidence_locations: None,
-            extracted_urls: None,
-            extracted_commands: None,
-            extracted_file_paths: None,
-        });
-
-        let verdict = heuristic_verdict(&findings, &empty_profile(), "no-ai");
-        assert_eq!(verdict.result, "SUSPICIOUS");
-    }
-}
 
 fn build_request(
     config: &AiConfig,
@@ -868,11 +772,10 @@ fn parse_verdict_content(content: &str) -> Result<AiVerdictResponse> {
     }
 
     let trimmed = content.trim();
-    if let Some(stripped) = trim_code_fence(trimmed) {
-        if let Some(parsed) = decode_verdict_json(stripped) {
+    if let Some(stripped) = trim_code_fence(trimmed)
+        && let Some(parsed) = decode_verdict_json(stripped) {
             return Ok(parsed);
         }
-    }
 
     if let Some((start, end)) = json_object_span(trimmed) {
         let candidate = &trimmed[start..=end];
@@ -1058,3 +961,100 @@ fn indicator_weight(indicator: &crate::Indicator, severity: &str) -> u32 {
 
     severity_weight(severity)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeMap, HashMap};
+
+    use super::heuristic_verdict;
+    use crate::profile::{CapabilityProfile, ModMetadata};
+    use crate::{Indicator, StaticFindings};
+
+    fn empty_profile() -> CapabilityProfile {
+        CapabilityProfile {
+            mod_metadata: ModMetadata::default(),
+            capabilities: BTreeMap::new(),
+            yara_hits: Vec::new(),
+            low_signal_indicators: Vec::new(),
+            reconstructed_strings: Vec::new(),
+            suspicious_manifest_entries: Vec::new(),
+            class_count: 0,
+            jar_size_bytes: 0,
+        }
+    }
+
+    fn findings_with(indicator: Indicator) -> StaticFindings {
+        StaticFindings {
+            matches: vec![indicator],
+            counts_by_category: HashMap::new(),
+            counts_by_severity: HashMap::new(),
+            matched_pattern_ids: Vec::new(),
+            matched_signature_ids: Vec::new(),
+            analyzed_files: 1,
+        }
+    }
+
+    #[test]
+    fn network_primitive_medium_is_not_enough_to_be_suspicious() {
+        let findings = findings_with(Indicator {
+            source: "detector".to_string(),
+            id: "DETC-02.NETWORK_PRIMITIVE".to_string(),
+            title: "Outbound networking primitive detected".to_string(),
+            category: "capability".to_string(),
+            severity: "med".to_string(),
+            file_path: Some("Example.class".to_string()),
+            evidence: "java/net/URL.openConnection".to_string(),
+            rationale: "broad".to_string(),
+            evidence_locations: None,
+            extracted_urls: Some(vec!["https://example.invalid".to_string()]),
+            extracted_commands: None,
+            extracted_file_paths: None,
+        });
+
+        let verdict = heuristic_verdict(&findings, &empty_profile(), "no-ai");
+        assert_eq!(verdict.result, "CLEAN");
+    }
+
+    #[test]
+    fn pattern_only_medium_is_not_enough_to_be_suspicious() {
+        let findings = findings_with(Indicator {
+            source: "pattern".to_string(),
+            id: "OBF-BASE64".to_string(),
+            title: "Long base64 blob".to_string(),
+            category: "obfuscation".to_string(),
+            severity: "med".to_string(),
+            file_path: Some("Example.class".to_string()),
+            evidence: "AAAA...".to_string(),
+            rationale: "Broad indicator".to_string(),
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
+        });
+
+        let verdict = heuristic_verdict(&findings, &empty_profile(), "no-ai");
+        assert_eq!(verdict.result, "CLEAN");
+    }
+
+    #[test]
+    fn high_signal_pattern_still_makes_it_suspicious() {
+        let findings = findings_with(Indicator {
+            source: "pattern".to_string(),
+            id: "NET-DISCORD-WEBHOOK".to_string(),
+            title: "Discord webhook endpoint".to_string(),
+            category: "network".to_string(),
+            severity: "high".to_string(),
+            file_path: Some("Example.class".to_string()),
+            evidence: "https://discord.com/api/webhooks/123/abc".to_string(),
+            rationale: "High signal".to_string(),
+            evidence_locations: None,
+            extracted_urls: None,
+            extracted_commands: None,
+            extracted_file_paths: None,
+        });
+
+        let verdict = heuristic_verdict(&findings, &empty_profile(), "no-ai");
+        assert_eq!(verdict.result, "SUSPICIOUS");
+    }
+}
+

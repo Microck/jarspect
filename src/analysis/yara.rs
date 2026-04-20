@@ -81,21 +81,18 @@ pub fn scan_yara_rulepacks(
 
 fn derive_rule_severity(rule: &Rule<'_, '_>, pack: RulepackKind) -> &'static str {
     for (key, value) in rule.metadata() {
-        if key.eq_ignore_ascii_case("severity") {
-            if let MetaValue::String(severity) = value {
-                if let Some(canonical) = canonicalize_severity(severity) {
+        if key.eq_ignore_ascii_case("severity")
+            && let MetaValue::String(severity) = value
+                && let Some(canonical) = canonicalize_severity(severity) {
                     return canonical;
                 }
-            }
-        }
     }
 
     for (key, value) in rule.metadata() {
-        if key.eq_ignore_ascii_case("threat_level") {
-            if let MetaValue::Integer(level) = value {
+        if key.eq_ignore_ascii_case("threat_level")
+            && let MetaValue::Integer(level) = value {
                 return severity_from_threat_level(level);
             }
-        }
     }
 
     for tag in rule.tags() {
