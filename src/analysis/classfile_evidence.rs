@@ -8,6 +8,7 @@ use crate::ArchiveEntry;
 use super::byte_array_strings::reconstruct_byte_array_strings;
 use super::{BytecodeEvidence, BytecodeEvidenceItem, Location, LocationMethod};
 
+/// Extract bytecode evidence from all class file entries in the archive
 pub fn extract_bytecode_evidence(entries: &[ArchiveEntry]) -> BytecodeEvidence {
     let mut items = Vec::new();
 

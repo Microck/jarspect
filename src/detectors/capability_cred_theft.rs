@@ -40,6 +40,7 @@ struct TokenEvidence {
     values: BTreeSet<String>,
 }
 
+/// Detect credential/token theft indicators combining browser credential paths with file-read and network primitives
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut token_classes: BTreeMap<(String, String), TokenEvidence> = BTreeMap::new();
 

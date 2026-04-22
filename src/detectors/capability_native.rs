@@ -18,6 +18,7 @@ const ABS_OR_TEMP_PATH_TOKENS: &[&str] = &[
 ];
 const NATIVE_LIBRARY_EXTENSIONS: &[&str] = &[".dll", ".so", ".dylib", ".jnilib"];
 
+/// Detect native library loading (System.load/loadLibrary) with embedded native binaries or suspicious paths
 pub fn detect(index: &EvidenceIndex, entries: &[ArchiveEntry]) -> Vec<DetectorFinding> {
     let primitive_matchers = [
         ("java/lang/System", "load", "java/lang/System.load"),

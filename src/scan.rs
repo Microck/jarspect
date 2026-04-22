@@ -44,6 +44,7 @@ fn malwarebazaar_hash_match_enabled() -> bool {
     !(normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off")
 }
 
+/// Orchestrate the full 3-layer scan pipeline for an uploaded jar file
 pub async fn run_scan(
     state: &AppState,
     request: ScanRequest,

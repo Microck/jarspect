@@ -65,6 +65,7 @@ struct ClassSignals {
     network_primitives: BTreeSet<String>,
 }
 
+/// Detect base64 staged payload indicators combining long base64 literals, decode primitives, and dynamic loading
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut by_class: BTreeMap<(String, String), ClassSignals> = BTreeMap::new();
 

@@ -36,6 +36,7 @@ const PATH_EXTRACTION_TOKENS: &[&str] = &[
 ];
 const COMMAND_EXTRACTION_TOKENS: &[&str] = &["schtasks", "systemctl"];
 
+/// Detect persistence indicators (registry run keys, scheduled tasks, cron) with correlated exec or write primitives
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut token_classes: BTreeMap<(String, String), Vec<Location>> = BTreeMap::new();
     let mut persistence_token_values = BTreeSet::new();

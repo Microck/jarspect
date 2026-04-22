@@ -10,6 +10,7 @@ const DETECTOR_ID: &str = "DETC-04.FS_MODIFY";
 const ENRICHMENT_TOKENS: &[&str] = &["../", "..\\", ".jar", "mods/", "meta-inf/", ".service"];
 const HIGH_ESCALATION_TOKENS: &[&str] = &["../", "..\\", ".jar"];
 
+/// Detect jar/filesystem modification primitives with correlated path traversal or jar markers
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let zip_or_jar_primitives = [
         (
