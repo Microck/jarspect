@@ -19,6 +19,7 @@ const CAPABILITY_KEYS: [&str; 8] = [
     "deserialization",
 ];
 
+/// Full capability profile summarizing detected behaviors and mod metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityProfile {
     pub mod_metadata: ModMetadata,
@@ -31,6 +32,7 @@ pub struct CapabilityProfile {
     pub jar_size_bytes: usize,
 }
 
+/// Extracted mod loader metadata (Fabric, Forge, Spigot, or legacy Forge)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -47,12 +49,14 @@ pub struct ModMetadata {
     pub entrypoints: Vec<String>,
 }
 
+/// A single capability signal indicating presence and supporting evidence
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilitySignal {
     pub present: bool,
     pub evidence: Vec<String>,
 }
 
+/// A YARA rule match extracted from static findings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YaraHit {
     pub id: String,
@@ -62,6 +66,7 @@ pub struct YaraHit {
     pub evidence: String,
 }
 
+/// Build a capability profile from static findings, archive entries, and bytecode evidence
 pub fn build_profile(
     static_findings: &StaticFindings,
     entries: &[ArchiveEntry],

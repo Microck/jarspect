@@ -8,6 +8,7 @@ use super::spec::{NETWORK_PRIMITIVE_MATCHERS, extract_urls};
 
 const DETECTOR_ID: &str = "DETC-03.DYNAMIC_LOAD";
 
+/// Detect dynamic class loading primitives with correlated network or URL evidence
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     // Only treat explicit class loading/definition primitives as "dynamic loading".
     // Reflection alone (Class.forName / Method.invoke) is extremely common in benign code.

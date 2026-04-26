@@ -8,6 +8,7 @@ use super::spec::{COMMAND_TOKENS, contains_any_token};
 
 const DETECTOR_ID: &str = "DETC-01.RUNTIME_EXEC";
 
+/// Detect process execution primitives (Runtime.exec, ProcessBuilder.start) with correlated command strings
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let runtime_exec = index.invokes("java/lang/Runtime", "exec");
     let process_builder_start = index.invokes("java/lang/ProcessBuilder", "start");

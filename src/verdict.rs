@@ -11,6 +11,7 @@ use url::Url;
 use crate::StaticFindings;
 use crate::profile::CapabilityProfile;
 
+/// Configuration for the Azure OpenAI or compatible AI verdict endpoint
 #[derive(Debug, Clone)]
 pub struct AiConfig {
     pub endpoint: String,
@@ -20,6 +21,7 @@ pub struct AiConfig {
     pub model: Option<String>,
 }
 
+/// Structured AI verdict result with classification, confidence, and capabilities assessment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiVerdict {
     pub result: String,
@@ -319,6 +321,7 @@ fn retry_after_from_message(message: &str) -> Option<u64> {
     digits.parse::<u64>().ok()
 }
 
+/// Request an AI-powered malware classification from the configured LLM endpoint
 pub async fn ai_verdict(
     profile: &CapabilityProfile,
     static_findings: &StaticFindings,
@@ -520,6 +523,7 @@ pub async fn ai_verdict(
     }
 }
 
+/// Create a fallback verdict with UNKNOWN result and the given explanation
 pub fn fallback_verdict(explanation: impl Into<String>) -> AiVerdict {
     AiVerdict {
         result: "UNKNOWN".to_string(),
@@ -530,6 +534,7 @@ pub fn fallback_verdict(explanation: impl Into<String>) -> AiVerdict {
     }
 }
 
+/// Compute a rule-based heuristic verdict from static findings and capability profile
 pub fn heuristic_verdict(
     static_findings: &StaticFindings,
     profile: &CapabilityProfile,

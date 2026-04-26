@@ -40,6 +40,7 @@ fn urls_are_all_benign(urls: &BTreeSet<String>) -> bool {
     })
 }
 
+/// Detect outbound networking primitives with correlated URL strings
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut evidence_locations = Vec::new();
     let mut touched_classes = BTreeSet::new();

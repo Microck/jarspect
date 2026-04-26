@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use cafebabe::bytecode::{Opcode, PrimitiveArrayType};
 use cafebabe::constant_pool::{LiteralConstant, Loadable, MemberRef};
 
+/// A string reconstructed from byte array initialization patterns in JVM bytecode
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReconstructedByteArrayString {
     pub value: String,
@@ -177,6 +178,7 @@ impl ReconstructionState {
     }
 }
 
+/// Reconstruct strings from byte array initialization patterns in JVM bytecode opcodes
 pub fn reconstruct_byte_array_strings(
     opcodes: &[(usize, Opcode<'_>)],
     exception_handler_pcs: &[u16],

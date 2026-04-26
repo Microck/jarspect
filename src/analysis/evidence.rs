@@ -1,10 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+/// Collection of bytecode evidence items extracted from class files
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct BytecodeEvidence {
     pub items: Vec<BytecodeEvidenceItem>,
 }
 
+/// Tagged union of bytecode evidence types extracted from JVM class files
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum BytecodeEvidenceItem {
@@ -30,6 +32,7 @@ pub enum BytecodeEvidenceItem {
     },
 }
 
+/// Source location of a bytecode evidence item within an archive entry
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Location {
     pub entry_path: String,
@@ -38,6 +41,7 @@ pub struct Location {
     pub pc: Option<u32>,
 }
 
+/// Java method name and JVM descriptor identifying a specific method
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LocationMethod {
     pub name: String,

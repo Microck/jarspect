@@ -9,6 +9,7 @@ use toml::Value as TomlValue;
 
 use super::ArchiveEntry;
 
+/// A finding from metadata analysis (manifest, Fabric, Forge, or Spigot)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetadataFinding {
     pub id: String,
@@ -64,6 +65,7 @@ const SUSPICIOUS_MANIFEST_KEYS: [(&str, &str, &str, &str); 5] = [
     ),
 ];
 
+/// Analyze archive entries for metadata anomalies across all jar layers
 pub fn analyze_metadata(entries: &[ArchiveEntry]) -> Vec<MetadataFinding> {
     let grouped_entries = group_entries_by_jar_layer(entries);
     let mut findings = Vec::new();

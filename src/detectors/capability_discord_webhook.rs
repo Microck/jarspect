@@ -16,6 +16,7 @@ const WEBHOOK_TOKEN_MARKERS: &[&str] = &[
 
 const WEBHOOK_URL_MARKERS: &[&str] = &["discord.com/api/webhooks", "discordapp.com/api/webhooks"];
 
+/// Detect Discord webhook exfiltration indicators with correlated network primitives
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut touched_classes = BTreeSet::new();
     let mut evidence_locations = Vec::new();

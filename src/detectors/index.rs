@@ -2,18 +2,21 @@ use std::collections::HashMap;
 
 use crate::analysis::{BytecodeEvidence, BytecodeEvidenceItem, Location};
 
+/// A resolved method invocation hit at a specific bytecode location
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvokeHit {
     pub descriptor: String,
     pub location: Location,
 }
 
+/// A string constant hit (UTF8, literal, or reconstructed) at a specific location
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StringHit {
     pub value: String,
     pub location: Location,
 }
 
+/// Pre-built index over bytecode evidence for efficient detector lookups by owner/name or class
 #[derive(Debug, Default)]
 pub struct EvidenceIndex {
     invokes_by_owner_name: HashMap<(String, String), Vec<InvokeHit>>,
@@ -22,6 +25,7 @@ pub struct EvidenceIndex {
 }
 
 impl EvidenceIndex {
+    /// Build an evidence index from the given bytecode evidence
     pub fn new(evidence: &BytecodeEvidence) -> Self {
         let mut index = Self::default();
 
@@ -64,6 +68,7 @@ impl EvidenceIndex {
         index
     }
 
+    /// Look up all resolved invocation hits for a given owner class and method name
     pub fn invokes(&self, owner: &str, name: &str) -> &[InvokeHit] {
         self.invokes_by_owner_name
             .get(&(owner.to_string(), name.to_string()))
@@ -71,6 +76,7 @@ impl EvidenceIndex {
             .unwrap_or(&[])
     }
 
+    /// Look up all string hits within a specific entry path and class name
     pub fn strings_in_class(&self, entry_path: &str, class_name: &str) -> &[StringHit] {
         self.strings_by_entry_class
             .get(&(entry_path.to_string(), class_name.to_string()))
@@ -78,6 +84,7 @@ impl EvidenceIndex {
             .unwrap_or(&[])
     }
 
+    /// Return an iterator over all string hits across all classes
     #[allow(dead_code)]
     pub fn all_strings(&self) -> impl Iterator<Item = &StringHit> {
         self.all_strings.iter()

@@ -16,6 +16,7 @@ pub mod verdict;
 
 pub use analysis::ArchiveEntry;
 
+/// Shared application state passed to all scan handlers
 #[derive(Clone)]
 pub struct AppState {
     pub uploads_dir: PathBuf,
@@ -28,6 +29,7 @@ pub struct AppState {
     pub ai_config: Option<verdict::AiConfig>,
 }
 
+/// Incoming scan request containing the upload identifier and optional author metadata
 #[derive(Debug, Deserialize, Clone)]
 pub struct ScanRequest {
     pub upload_id: String,
@@ -35,6 +37,7 @@ pub struct ScanRequest {
     pub author: Option<AuthorMetadata>,
 }
 
+/// Author reputation metadata submitted alongside a scan request
 #[derive(Debug, Deserialize, Clone)]
 pub struct AuthorMetadata {
     pub author_id: String,
@@ -44,6 +47,7 @@ pub struct AuthorMetadata {
     pub report_count: Option<u32>,
 }
 
+/// Complete scan result including verdict, findings, and capability profile
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScanRunResponse {
     pub scan_id: String,
@@ -65,6 +69,7 @@ pub struct ScanRunResponse {
     pub intake: IntakeResult,
 }
 
+/// Archive intake summary produced after extracting entries from the uploaded jar
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IntakeResult {
     pub upload_id: String,
@@ -73,6 +78,7 @@ pub struct IntakeResult {
     pub class_file_count: usize,
 }
 
+/// Scan verdict with classification, confidence, and explanation
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Verdict {
     pub result: String,
@@ -84,6 +90,7 @@ pub struct Verdict {
     pub capabilities_assessment: BTreeMap<String, String>,
 }
 
+/// Aggregated static analysis findings from pattern matching, signatures, and YARA rules
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StaticFindings {
     pub matches: Vec<Indicator>,
@@ -94,6 +101,7 @@ pub struct StaticFindings {
     pub analyzed_files: usize,
 }
 
+/// A single indicator of suspicious or malicious behavior found during analysis
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Indicator {
     pub source: String,
@@ -114,6 +122,7 @@ pub struct Indicator {
     pub extracted_file_paths: Option<Vec<String>>,
 }
 
+/// A user-defined signature pattern loaded from the signature corpus
 #[derive(Debug, Deserialize, Clone)]
 pub struct SignatureDefinition {
     id: String,
@@ -123,6 +132,7 @@ pub struct SignatureDefinition {
     description: String,
 }
 
+/// Execute the full 3-layer malware scan pipeline
 pub async fn run_scan(
     state: &AppState,
     request: ScanRequest,
@@ -131,6 +141,7 @@ pub async fn run_scan(
     scan::run_scan(state, request, scan_id_override).await
 }
 
+/// Run static analysis combining metadata checks, pattern matching, signature matching, YARA rules, and capability detectors
 pub fn run_static_analysis(
     entries: &[ArchiveEntry],
     bytecode_evidence: Option<&analysis::BytecodeEvidence>,
@@ -398,6 +409,7 @@ fn detector_evidence_summary(finding: &detectors::DetectorFinding) -> String {
     format!("{} [{}]", finding.id, details.join(", "))
 }
 
+/// Parse the JARSPECT_RULEPACKS environment variable into a list of active rulepack kinds
 pub fn parse_active_rulepacks() -> Result<Vec<analysis::RulepackKind>> {
     let raw_value = std::env::var("JARSPECT_RULEPACKS").unwrap_or_else(|_| "demo".to_string());
     let mut packs = Vec::new();
@@ -436,6 +448,7 @@ fn yara_path_for_pack(cwd: &Path, pack: &str) -> PathBuf {
     cwd.join("data/signatures").join(pack).join("rules.yar")
 }
 
+/// Load signature definitions from all active rulepack directories
 pub fn load_signatures(
     cwd: &Path,
     packs: &[analysis::RulepackKind],
@@ -454,6 +467,7 @@ pub fn load_signatures(
     Ok(signatures)
 }
 
+/// Compile and load YARA rules from all active rulepack directories
 pub fn load_yara_rules(
     cwd: &Path,
     packs: &[analysis::RulepackKind],
@@ -477,6 +491,7 @@ pub fn load_yara_rules(
     Ok(loaded_rulepacks)
 }
 
+/// Validate that an artifact identifier is a 32-char hex string
 pub fn validate_artifact_id(value: &str) -> Result<()> {
     if value.len() != 32 || !value.chars().all(|ch| ch.is_ascii_hexdigit()) {
         anyhow::bail!("Invalid identifier format (expected 32 hex chars)")

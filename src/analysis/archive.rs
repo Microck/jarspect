@@ -12,6 +12,7 @@ const MAX_TOTAL_INFLATED_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_TEXT_BYTES: usize = 256 * 1024;
 const MAX_COMPRESSION_RATIO: u64 = 1_000;
 
+/// A single entry extracted from a jar archive with its path, bytes, and decoded text
 #[derive(Debug, Clone)]
 pub struct ArchiveEntry {
     pub path: String,
@@ -25,6 +26,7 @@ struct ArchiveBudgets {
     total_inflated_bytes: u64,
 }
 
+/// Recursively read all entries from a jar archive including nested jars
 pub fn read_archive_entries_recursive(
     root_label: &str,
     jar_bytes: &[u8],
