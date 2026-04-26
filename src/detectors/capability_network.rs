@@ -72,9 +72,7 @@ pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     }
 
     let urls_look_benign = urls_are_all_benign(&extracted_urls);
-    let severity = if extracted_urls.is_empty() {
-        "low"
-    } else if urls_look_benign {
+    let severity = if extracted_urls.is_empty() || urls_look_benign {
         "low"
     } else {
         "med"

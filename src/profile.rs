@@ -230,10 +230,10 @@ fn jar_layer_depth(path: &str) -> usize {
     path.match_indices("!/").count()
 }
 
-fn find_shallowest_entry<'a, F>(
-    entries: &'a [ArchiveEntry],
+fn find_shallowest_entry<F>(
+    entries: &[ArchiveEntry],
     predicate: F,
-) -> Option<&'a ArchiveEntry>
+) -> Option<&ArchiveEntry>
 where
     F: Fn(&ArchiveEntry) -> bool,
 {
@@ -466,6 +466,24 @@ fn parse_mcmod_info(entries: &[ArchiveEntry]) -> Option<ModMetadata> {
     })
 }
 
+
+fn collect_fabric_entrypoints(value: &JsonValue, entrypoints: &mut Vec<String>) {
+    match value {
+        JsonValue::String(raw) => entrypoints.push(raw.clone()),
+        JsonValue::Array(items) => {
+            for item in items {
+                collect_fabric_entrypoints(item, entrypoints);
+            }
+        }
+        JsonValue::Object(object) => {
+            if let Some(inner) = object.get("value") {
+                collect_fabric_entrypoints(inner, entrypoints);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::extract_mod_metadata;
@@ -519,19 +537,3 @@ mods = [
     }
 }
 
-fn collect_fabric_entrypoints(value: &JsonValue, entrypoints: &mut Vec<String>) {
-    match value {
-        JsonValue::String(raw) => entrypoints.push(raw.clone()),
-        JsonValue::Array(items) => {
-            for item in items {
-                collect_fabric_entrypoints(item, entrypoints);
-            }
-        }
-        JsonValue::Object(object) => {
-            if let Some(inner) = object.get("value") {
-                collect_fabric_entrypoints(inner, entrypoints);
-            }
-        }
-        _ => {}
-    }
-}

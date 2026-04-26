@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn extract_urls_is_conservative_and_deduplicated() {
-        let strings = vec![
+        let strings = [
             "ping https://example.invalid/bootstrap",
             "fallback https://example.invalid/bootstrap and http://api.example.test/v1",
             "not-a-url: hxxps://example.invalid",
