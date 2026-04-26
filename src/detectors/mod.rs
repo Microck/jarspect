@@ -16,6 +16,7 @@ pub mod capability_remote_code_load;
 pub mod index;
 pub mod spec;
 
+/// A finding from a capability detector with severity, evidence locations, and extracted artifacts
 #[derive(Debug, Clone)]
 pub struct DetectorFinding {
     pub id: String,
@@ -29,6 +30,7 @@ pub struct DetectorFinding {
     pub extracted_file_paths: Vec<String>,
 }
 
+/// Run all capability detectors against the bytecode evidence and archive entries
 pub fn run_capability_detectors(
     evidence: &BytecodeEvidence,
     entries: &[ArchiveEntry],

@@ -3,12 +3,49 @@
 </picture>
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **Upload a `.jar`, get a risk verdict with explainable indicators before you install.**
 
 The name **Jarspect** is a portmanteau of **JAR** (Java Archive) and **Inspect**, reflecting its mission to provide deep, automated inspection of game mods for hidden threats.
 
 Jarspect is an AI-first security scanner for Minecraft mods. It runs a 3-layer pipeline: MalwareBazaar threat intel, bytecode capability extraction, and Azure OpenAI verdict; to classify `.jar` files as **CLEAN**, **SUSPICIOUS**, or **MALICIOUS** with full explanations. The bytecode layer parses compiled `.class` files at the constant-pool and instruction level, reconstructs obfuscated strings, resolves method invocations, runs YARA rules per archive entry, and feeds 8 capability detectors into a structured profile that the AI analyzes to produce its verdict.
+
+### Features at a Glance
+
+- 🔍 **3-layer pipeline** — MalwareBazaar hash lookup → bytecode capability extraction → AI verdict
+- 🧠 **AI-first analysis** — Azure OpenAI (gpt-4o) understands context (e.g., `glxinfo` in rendering mods is benign)
+- ⚡ **Static override** — high-confidence YARA/detector signals override AI to guarantee MALICIOUS on known threats
+- 🏗️ **Bytecode-native** — parses `.class` constant pools and `invoke*` instructions, not regex over text
+- 🔄 **Hidden string reconstruction** — recovers `new String(new byte[]{...})` obfuscated payloads
+- 📦 **Recursive jar scanning** — follows jar-in-jar nesting with budget-gated inflation
+- 🎯 **8 capability detectors** — execution, network, dynamic loading, filesystem, persistence, deserialization, JNI, credential theft
+- 📊 **120-sample benchmark** — 100% detection (70 malware), 100% clean (50 benign), Wilson 95% CI
+- 🖥️ **Single binary** — `cargo run` starts HTTP server + web UI
+
+---
+
+## Table of Contents
+
+- [Why This Exists](#why-this-exists)
+- [How It Works](#how-it-works)
+- [Detection Engine](#detection-engine)
+- [Verdict Pipeline](#verdict-pipeline)
+- [Benchmarks](#benchmarks)
+- [Quickstart](#quickstart)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [API Reference](#api-reference)
+- [Web UI](#web-ui)
+- [Architecture](#architecture)
+- [Data Model](#data-model)
+- [Safety and Limitations](#safety-and-limitations)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+- [Origin](#origin)
 
 ---
 

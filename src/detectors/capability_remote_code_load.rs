@@ -66,6 +66,7 @@ struct ClassSignals {
     locations: Vec<Location>,
 }
 
+/// Detect remote code fetch-and-load indicators requiring network, filesystem write, and dynamic load in the same class
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let mut by_class: BTreeMap<(String, String), ClassSignals> = BTreeMap::new();
 

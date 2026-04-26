@@ -1,7 +1,9 @@
 use regex::Regex;
 use std::collections::BTreeSet;
 
+/// Shell command tokens used to identify command-like strings
 pub const COMMAND_TOKENS: &[&str] = &["powershell", "cmd.exe", "/bin/sh", "curl", "wget"];
+/// Known Java networking primitive method signatures for correlation
 pub const NETWORK_PRIMITIVE_MATCHERS: &[(&str, &str, &str)] = &[
     ("java/net/URL", "<init>", "java/net/URL.<init>"),
     (
@@ -71,6 +73,7 @@ pub const NETWORK_PRIMITIVE_MATCHERS: &[(&str, &str, &str)] = &[
     ),
 ];
 
+/// Extract HTTP/HTTPS URLs from an iterator of strings using regex matching
 pub fn extract_urls<'a>(strings: impl Iterator<Item = &'a str>) -> Vec<String> {
     let regex = Regex::new(
         r#"(?i)https?://[a-z0-9][a-z0-9._:%+\-]*(?:\.[a-z0-9][a-z0-9._:%+\-]*)+(?:/[^\s\"'<>]*)?"#,
@@ -89,6 +92,7 @@ pub fn extract_urls<'a>(strings: impl Iterator<Item = &'a str>) -> Vec<String> {
     urls
 }
 
+/// Check if a haystack string contains any of the given case-insensitive tokens
 pub fn contains_any_token(haystack: &str, tokens: &[&str]) -> bool {
     let normalized_haystack = haystack.to_ascii_lowercase();
     tokens
@@ -96,6 +100,7 @@ pub fn contains_any_token(haystack: &str, tokens: &[&str]) -> bool {
         .any(|token| normalized_haystack.contains(&token.to_ascii_lowercase()))
 }
 
+/// Return unique case-insensitive matches of token patterns from input strings
 pub fn matching_token_strings<'a>(
     strings: impl Iterator<Item = &'a str>,
     tokens: &[&str],
@@ -119,7 +124,7 @@ mod tests {
 
     #[test]
     fn extract_urls_is_conservative_and_deduplicated() {
-        let strings = vec![
+        let strings = [
             "ping https://example.invalid/bootstrap",
             "fallback https://example.invalid/bootstrap and http://api.example.test/v1",
             "not-a-url: hxxps://example.invalid",

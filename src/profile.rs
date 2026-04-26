@@ -19,6 +19,7 @@ const CAPABILITY_KEYS: [&str; 8] = [
     "deserialization",
 ];
 
+/// Full capability profile summarizing detected behaviors and mod metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityProfile {
     pub mod_metadata: ModMetadata,
@@ -31,6 +32,7 @@ pub struct CapabilityProfile {
     pub jar_size_bytes: usize,
 }
 
+/// Extracted mod loader metadata (Fabric, Forge, Spigot, or legacy Forge)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -47,12 +49,14 @@ pub struct ModMetadata {
     pub entrypoints: Vec<String>,
 }
 
+/// A single capability signal indicating presence and supporting evidence
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilitySignal {
     pub present: bool,
     pub evidence: Vec<String>,
 }
 
+/// A YARA rule match extracted from static findings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YaraHit {
     pub id: String,
@@ -62,6 +66,7 @@ pub struct YaraHit {
     pub evidence: String,
 }
 
+/// Build a capability profile from static findings, archive entries, and bytecode evidence
 pub fn build_profile(
     static_findings: &StaticFindings,
     entries: &[ArchiveEntry],
@@ -461,6 +466,24 @@ fn parse_mcmod_info(entries: &[ArchiveEntry]) -> Option<ModMetadata> {
     })
 }
 
+
+fn collect_fabric_entrypoints(value: &JsonValue, entrypoints: &mut Vec<String>) {
+    match value {
+        JsonValue::String(raw) => entrypoints.push(raw.clone()),
+        JsonValue::Array(items) => {
+            for item in items {
+                collect_fabric_entrypoints(item, entrypoints);
+            }
+        }
+        JsonValue::Object(object) => {
+            if let Some(inner) = object.get("value") {
+                collect_fabric_entrypoints(inner, entrypoints);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::extract_mod_metadata;
@@ -514,19 +537,3 @@ mods = [
     }
 }
 
-fn collect_fabric_entrypoints(value: &JsonValue, entrypoints: &mut Vec<String>) {
-    match value {
-        JsonValue::String(raw) => entrypoints.push(raw.clone()),
-        JsonValue::Array(items) => {
-            for item in items {
-                collect_fabric_entrypoints(item, entrypoints);
-            }
-        }
-        JsonValue::Object(object) => {
-            if let Some(inner) = object.get("value") {
-                collect_fabric_entrypoints(inner, entrypoints);
-            }
-        }
-        _ => {}
-    }
-}

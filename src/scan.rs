@@ -44,6 +44,7 @@ fn malwarebazaar_hash_match_enabled() -> bool {
     !(normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off")
 }
 
+/// Orchestrate the full 3-layer scan pipeline for an uploaded jar file
 pub async fn run_scan(
     state: &AppState,
     request: ScanRequest,
@@ -68,41 +69,40 @@ pub async fn run_scan(
     };
 
     if mb_mode == MalwareBazaarMatchMode::ShortCircuit
-        && let Some(known_malware) = malwarebazaar_match.clone()
-    {
-        let explanation = match known_malware.family.as_deref() {
-            Some(family) => format!("Known malware detected by hash match: {family}."),
-            None => "Known malware detected by hash match in MalwareBazaar.".to_string(),
-        };
+        && let Some(known_malware) = malwarebazaar_match.clone() {
+            let explanation = match known_malware.family.as_deref() {
+                Some(family) => format!("Known malware detected by hash match: {family}."),
+                None => "Known malware detected by hash match in MalwareBazaar.".to_string(),
+            };
 
-        let response = ScanRunResponse {
-            scan_id: build_scan_id(scan_id_override)?,
-            sha256: Some(sha256_hash),
-            verdict: Verdict {
-                result: "MALICIOUS".to_string(),
-                confidence: 1.0,
-                risk_score: 100,
-                method: "malwarebazaar_hash".to_string(),
-                explanation,
-                capabilities_assessment: std::collections::BTreeMap::new(),
-            },
-            malwarebazaar: Some(known_malware),
-            static_findings: None,
-            capabilities: None,
-            yara_hits: None,
-            metadata: None,
-            profile: None,
-            intake: IntakeResult {
-                upload_id: request.upload_id.clone(),
-                storage_path: upload_path.to_string_lossy().into_owned(),
-                file_count: 0,
-                class_file_count: 0,
-            },
-        };
+            let response = ScanRunResponse {
+                scan_id: build_scan_id(scan_id_override)?,
+                sha256: Some(sha256_hash),
+                verdict: Verdict {
+                    result: "MALICIOUS".to_string(),
+                    confidence: 1.0,
+                    risk_score: 100,
+                    method: "malwarebazaar_hash".to_string(),
+                    explanation,
+                    capabilities_assessment: std::collections::BTreeMap::new(),
+                },
+                malwarebazaar: Some(known_malware),
+                static_findings: None,
+                capabilities: None,
+                yara_hits: None,
+                metadata: None,
+                profile: None,
+                intake: IntakeResult {
+                    upload_id: request.upload_id.clone(),
+                    storage_path: upload_path.to_string_lossy().into_owned(),
+                    file_count: 0,
+                    class_file_count: 0,
+                },
+            };
 
-        persist_scan_result(state, &response).await?;
-        return Ok(response);
-    }
+            persist_scan_result(state, &response).await?;
+            return Ok(response);
+        }
 
     let root_label = format!("{}.jar", request.upload_id);
     let entries = match analysis::read_archive_entries_recursive(root_label.as_str(), &bytes) {
@@ -300,17 +300,16 @@ pub async fn run_scan(
     };
 
     if let Some(reason) = high_confidence_static_reason(&static_findings)
-        && ai_verdict.result != "MALICIOUS"
-    {
-        ai_verdict.result = "MALICIOUS".to_string();
-        ai_verdict.confidence = ai_verdict.confidence.max(0.9);
-        ai_verdict.risk_score = ai_verdict.risk_score.max(90);
-        ai_verdict.explanation = format!(
-            "High-confidence static indicator detected ({reason}). {}",
-            ai_verdict.explanation
-        );
-        method = format!("static_override({method})");
-    }
+        && ai_verdict.result != "MALICIOUS" {
+            ai_verdict.result = "MALICIOUS".to_string();
+            ai_verdict.confidence = ai_verdict.confidence.max(0.9);
+            ai_verdict.risk_score = ai_verdict.risk_score.max(90);
+            ai_verdict.explanation = format!(
+                "High-confidence static indicator detected ({reason}). {}",
+                ai_verdict.explanation
+            );
+            method = format!("static_override({method})");
+        }
 
     let response = ScanRunResponse {
         scan_id: build_scan_id(scan_id_override)?,
@@ -414,6 +413,17 @@ fn build_scan_id(scan_id_override: Option<&str>) -> Result<String> {
     }
 
     Ok(Uuid::new_v4().simple().to_string())
+}
+
+
+async fn persist_scan_result(state: &AppState, payload: &ScanRunResponse) -> Result<()> {
+    let path = state.scans_dir.join(format!("{}.json", payload.scan_id));
+    let payload_bytes =
+        serde_json::to_vec_pretty(payload).context("Failed to serialize scan result")?;
+    fs::write(&path, payload_bytes)
+        .await
+        .with_context(|| format!("Failed to persist scan result: {}", path.display()))?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -534,12 +544,3 @@ mod tests {
     }
 }
 
-async fn persist_scan_result(state: &AppState, payload: &ScanRunResponse) -> Result<()> {
-    let path = state.scans_dir.join(format!("{}.json", payload.scan_id));
-    let payload_bytes =
-        serde_json::to_vec_pretty(payload).context("Failed to serialize scan result")?;
-    fs::write(&path, payload_bytes)
-        .await
-        .with_context(|| format!("Failed to persist scan result: {}", path.display()))?;
-    Ok(())
-}

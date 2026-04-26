@@ -5,6 +5,7 @@ use super::index::EvidenceIndex;
 
 const DETECTOR_ID: &str = "DETC-06.UNSAFE_DESERIALIZATION";
 
+/// Detect unsafe deserialization sinks via ObjectInputStream.readObject calls
 pub fn detect(index: &EvidenceIndex) -> Vec<DetectorFinding> {
     let hits = index.invokes("java/io/ObjectInputStream", "readObject");
     if hits.is_empty() {

@@ -3,6 +3,7 @@ use yara_x::{MetaValue, Rule, Rules, Scanner};
 
 use crate::analysis::ArchiveEntry;
 
+/// Kind of YARA rulepack (demo or production)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RulepackKind {
     Demo,
@@ -10,6 +11,7 @@ pub enum RulepackKind {
 }
 
 impl RulepackKind {
+    /// Return the directory name for this rulepack kind
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Demo => "demo",
@@ -17,6 +19,7 @@ impl RulepackKind {
         }
     }
 
+    /// Return the indicator ID prefix (DEMO or PROD) for this rulepack
     pub fn indicator_prefix(self) -> &'static str {
         match self {
             Self::Demo => "DEMO",
@@ -24,6 +27,7 @@ impl RulepackKind {
         }
     }
 
+    /// Return the default severity when a rule has no explicit severity metadata
     pub fn default_severity(self) -> &'static str {
         match self {
             Self::Demo => "high",
@@ -31,6 +35,7 @@ impl RulepackKind {
         }
     }
 
+    /// Parse a rulepack token string into a RulepackKind
     pub fn from_token(token: &str) -> Option<Self> {
         match token {
             "demo" => Some(Self::Demo),
@@ -40,11 +45,13 @@ impl RulepackKind {
     }
 }
 
+/// A compiled YARA rulepack with its associated kind
 pub struct YaraRulepack {
     pub kind: RulepackKind,
     pub rules: Rules,
 }
 
+/// A single YARA rule match with severity and evidence
 pub struct YaraFinding {
     pub pack: RulepackKind,
     pub rule_identifier: String,
@@ -52,6 +59,7 @@ pub struct YaraFinding {
     pub evidence: String,
 }
 
+/// Scan archive entries against all loaded YARA rulepacks
 pub fn scan_yara_rulepacks(
     entries: &[ArchiveEntry],
     packs: &[YaraRulepack],
@@ -83,18 +91,16 @@ fn derive_rule_severity(rule: &Rule<'_, '_>, pack: RulepackKind) -> &'static str
     for (key, value) in rule.metadata() {
         if key.eq_ignore_ascii_case("severity")
             && let MetaValue::String(severity) = value
-            && let Some(canonical) = canonicalize_severity(severity)
-        {
-            return canonical;
-        }
+                && let Some(canonical) = canonicalize_severity(severity) {
+                    return canonical;
+                }
     }
 
     for (key, value) in rule.metadata() {
         if key.eq_ignore_ascii_case("threat_level")
-            && let MetaValue::Integer(level) = value
-        {
-            return severity_from_threat_level(level);
-        }
+            && let MetaValue::Integer(level) = value {
+                return severity_from_threat_level(level);
+            }
     }
 
     for tag in rule.tags() {
