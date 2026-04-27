@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-API_BASE_URL="${JARSPECT_API_URL:-http://localhost:8000}"
+API_BASE_URL="${JARSPECT_API_URL:-http://localhost:18000}"
 JAR_PATH="${ROOT_DIR}/demo/suspicious_sample.jar"
 SERVER_PID=""
 SERVER_LOG=""

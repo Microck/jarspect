@@ -46,7 +46,7 @@ Date: 2026-03-05 (updated from 2026-03-03 initial calibration)
 
 ### Multi-tag expansion calibration (2026-03-05)
 
-6. **Static override layer**: high-confidence static signals (production YARA high/critical, `DETC-03.DYNAMIC_LOAD` high/critical, and others) override the AI verdict to MALICIOUS via `static_override(ai_verdict)`.
+6. **Static override layer**: high-confidence static signals (production YARA high/critical, `DETC-03.BASE64_STAGER` high/critical, `DETC-02.DISCORD_WEBHOOK` high/critical, and others) override the AI verdict to MALICIOUS via `static_override(ai_verdict)`.
 7. **6 production YARA rules** (`data/signatures/prod/rules.yar`): family-specific, multi-string rules for Krypton, MaxCoffe, MaksLibraries, PussyRAT, Loader/Stager, and ETH RPC loader families.
 8. **Exec detector filter** (`is_command_like_string()`): stops error message strings and class names from being misclassified as shell commands (fixed FancyMenu, tr7zw false positives).
 9. **AI prompt tuning**: deserialization is vulnerability-risk not malware; private URLs are low-signal; don't infer shell usage from class names.
@@ -78,7 +78,7 @@ Scans run with `JARSPECT_RULEPACKS=prod JARSPECT_MB_HASH_MATCH_ENABLED=0` (hash 
 
 ### Verdict method breakdown (malicious corpus)
 
-Most samples hit via `static_override(ai_verdict)` (production YARA or `DETC-03.DYNAMIC_LOAD` at high severity). Remaining samples caught by the AI itself assigning MALICIOUS.
+Most samples hit via `static_override(ai_verdict)` (production YARA or malware-specific detector signals such as `DETC-03.BASE64_STAGER` / `DETC-02.DISCORD_WEBHOOK` at high severity). Remaining samples caught by the AI itself assigning MALICIOUS.
 
 ### Run artifacts
 
