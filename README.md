@@ -316,7 +316,7 @@ bun scripts/render-benchmark-figures.ts \
 
 ## Quickstart
 
-**Prerequisites:** Rust stable toolchain ([rustup.rs](https://rustup.rs))
+**Prerequisites:** Rust 1.85+ toolchain (2024 edition) ([rustup.rs](https://rustup.rs))
 
 ```bash
 git clone https://github.com/Microck/jarspect.git
@@ -403,10 +403,12 @@ curl http://localhost:18000/scans/<scan_id>
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `JARSPECT_BIND` | `127.0.0.1:18000` | Host and port the HTTP server binds to |
+| `JARSPECT_WEB_DIR` | `web` | Web assets directory served at `/static` and used for `/` |
 | `JARSPECT_RULEPACKS` | `demo` | Which YARA/signature rulepacks to load: `demo`, `prod`, or `demo,prod` |
 | `JARSPECT_AI_ENABLED` | `1` | Enable/disable AI verdict even if Azure OpenAI env vars are set (`0`/`false` to disable) |
 | `JARSPECT_UPLOAD_MAX_BYTES` | `52428800` | Maximum accepted upload size in bytes (default 50 MiB) |
 | `JARSPECT_MB_HASH_MATCH_ENABLED` | `1` | Enable/disable MalwareBazaar hash matching (`0`/`false` to disable; useful for benchmarking static/AI detectors) |
+| `JARSPECT_MB_MATCH_CONTINUE_ANALYSIS` | `0` | Continue static analysis after a MalwareBazaar hash match (`1`/`true` to keep profile artifacts while verdict stays `malwarebazaar_hash`) |
 | `RUST_LOG` | `jarspect=info,tower_http=info` | Log verbosity (uses `tracing-subscriber` env-filter syntax) |
 
 ### AI Verdict (required for production)
@@ -501,10 +503,11 @@ Liveness check. Reports AI status, loaded rulepacks, signature/YARA rule counts,
   "service": "jarspect",
   "version": "0.1.0",
   "ai_enabled": true,
-  "rulepacks": "prod",
-  "signature_count": 12,
-  "yara_rule_count": 6,
-  "mb_hash_match_enabled": true,
+  "rulepacks": ["prod"],
+  "signatures_loaded": 12,
+  "yara_rulepacks_loaded": 1,
+  "malwarebazaar_hash_match_enabled": true,
+  "malwarebazaar_match_continue_analysis": false,
   "upload_max_bytes": 52428800
 }
 ```
@@ -642,7 +645,7 @@ Verdict object:
 ## Safety and Limitations
 
 - **No sandbox.** Jarspect does not execute or load any `.class` files. All analysis is purely static (bytecode-level constant-pool and instruction parsing).
-- **AI-dependent.** Production verdicts require a working Azure OpenAI endpoint. Without AI configuration, scans will fail with an error. The AI model's judgment is the final authority on ambiguous cases.
+- **AI-preferred with fallback.** Production verdicts use Azure OpenAI when configured. Without AI configuration, scans still succeed via `heuristic_fallback`; the AI path is preferred for ambiguous cases.
 - **Rate limiting.** Azure OpenAI endpoints may be rate-limited (429 responses). Jarspect retries with exponential backoff but will fail if rate-limited for too long.
 - **Synthetic demo fixtures.** The bundled demo rulepack matches strings from `demo/suspicious_sample.jar` -- a synthetic artifact built by `demo/build_sample.sh`. No real malware samples are included in the repository.
 - **Static analysis only.** The bytecode layer extracts capabilities and artifacts deterministically from bytecode evidence, but does not execute code.
