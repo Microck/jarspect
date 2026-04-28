@@ -10,7 +10,7 @@
 
 The name **Jarspect** is a portmanteau of **JAR** (Java Archive) and **Inspect**, reflecting its mission to provide deep, automated inspection of game mods for hidden threats.
 
-Jarspect is an AI-first security scanner for Minecraft mods. It runs a 3-layer pipeline: MalwareBazaar threat intel, bytecode capability extraction, and Azure OpenAI verdict; to classify `.jar` files as **CLEAN**, **SUSPICIOUS**, or **MALICIOUS** with full explanations. The bytecode layer parses compiled `.class` files at the constant-pool and instruction level, reconstructs obfuscated strings, resolves method invocations, runs YARA rules per archive entry, and feeds 8 capability detectors into a structured profile that the AI analyzes to produce its verdict.
+Jarspect is an AI-first security scanner for Minecraft mods. It runs a 3-layer pipeline: MalwareBazaar threat intel, bytecode capability extraction, and Azure OpenAI verdict; to classify `.jar` files as **CLEAN**, **SUSPICIOUS**, or **MALICIOUS** with full explanations. The bytecode layer parses compiled `.class` files at the constant-pool and instruction level, reconstructs obfuscated strings, resolves method invocations, runs YARA rules per archive entry, and feeds 11 capability detectors into a structured profile that the AI analyzes to produce its verdict.
 
 ### Features at a Glance
 
@@ -20,7 +20,7 @@ Jarspect is an AI-first security scanner for Minecraft mods. It runs a 3-layer p
 - 🏗️ **Bytecode-native** — parses `.class` constant pools and `invoke*` instructions, not regex over text
 - 🔄 **Hidden string reconstruction** — recovers `new String(new byte[]{...})` obfuscated payloads
 - 📦 **Recursive jar scanning** — follows jar-in-jar nesting with budget-gated inflation
-- 🎯 **8 capability detectors** — execution, network, dynamic loading, filesystem, persistence, deserialization, JNI, credential theft
+- 🎯 **11 capability detectors** — execution, network, dynamic loading, filesystem, persistence, deserialization, JNI, credential theft, base64 stager, Discord webhook, remote code loading
 - 📊 **120-sample benchmark** — 100% detection (70 malware), 100% clean (50 benign), Wilson 95% CI
 - 🖥️ **Single binary** — `cargo run` starts HTTP server + web UI
 
@@ -85,8 +85,9 @@ POST /scan  (upload_id)
         +-- Byte-array strings    reconstruct new String(new byte[]{...}) hidden values
         +-- YARA per-entry        inflate each entry, scan individually, severity from metadata
         +-- Metadata checks       fabric.mod.json / mods.toml / META-INF/neoforge.mods.toml / plugin.yml / MANIFEST.MF
-        +-- Capability detectors  8 detectors (exec, network, dynamic load, fs/jar modify,
-        |                         persistence, deserialization, native/JNI, credential theft)
+        +-- Capability detectors  11 detectors (exec, network, dynamic load, fs/jar modify,
+        |                         persistence, deserialization, native/JNI, credential theft,
+        |                         base64 stager, Discord webhook, remote code loading)
         +-- Profile builder       structured capability profile with extracted artifacts
         |
   Layer 3: AI Verdict (Azure OpenAI)
@@ -101,7 +102,7 @@ GET /scans/{scan_id}  -> fetch full result at any time
 ```
 
 **Key properties:**
-- **AI-first** -- Azure OpenAI (gpt-4o) analyzes the full capability profile and decides the verdict; no rule-based scoring fallback
+- **AI-first** -- Azure OpenAI (configurable model) analyzes the full capability profile and decides the verdict; no rule-based scoring fallback
 - **Static override layer** -- high-confidence static signals (production YARA hits and malware-specific compound detectors) override the AI verdict to MALICIOUS via `static_override(ai_verdict)`, preventing the AI from downgrading obvious malware
 - **Known-malware guaranteed** -- MalwareBazaar hash match short-circuits to MALICIOUS before any other analysis (verdict always uses method `malwarebazaar_hash`)
 - **Reporting-friendly artifacts** -- scan JSON includes top-level `sha256` and (when available) `static_findings` for extracted URLs/domains/paths/commands
@@ -109,7 +110,7 @@ GET /scans/{scan_id}  -> fetch full result at any time
 - **Reconstructs hidden strings** -- recovers `new String(new byte[]{...})` values that fractureiser Stage 0 used to hide URLs and class names
 - **Recursive archive scanning** -- follows jar-in-jar nesting with `!/` path provenance and budget-gated inflation
 - **Per-entry YARA** -- scans each inflated archive entry individually (not the compressed jar blob) with severity from rule metadata
-- **8 capability detectors** -- each uses an evidence index with class-scoped correlation gates for severity escalation
+- **11 capability detectors** -- each uses an evidence index with class-scoped correlation gates for severity escalation
 - **Artifact extraction** -- URLs, domains, shell commands, and file paths extracted from bytecode evidence and fed to the AI
 - **Fully explainable** -- the AI provides per-capability rationale explaining what it found and why it matters (or doesn't)
 - **Single binary** -- `cargo run` starts the HTTP server and the web UI on the same port
@@ -129,7 +130,7 @@ Every `.class` entry (identified by `0xCAFEBABE` magic) is parsed using the `caf
 
 ### Capability Detectors
 
-Eight detectors run against an `EvidenceIndex` built from the extracted bytecode evidence. Each detector uses class-scoped correlation gates: a method call alone may be `low` severity, but the same call in a class that also references suspicious strings or complementary APIs escalates to `high`.
+Eleven detectors run against an `EvidenceIndex` built from the extracted bytecode evidence. Each detector uses class-scoped correlation gates: a method call alone may be `low` severity, but the same call in a class that also references suspicious strings or complementary APIs escalates to `high`.
 
 | ID | Capability | What it catches |
 |----|-----------|----------------|
@@ -141,6 +142,9 @@ Eight detectors run against an `EvidenceIndex` built from the extracted bytecode
 | DETC-06 | Unsafe deserialization | `ObjectInputStream.readObject()` (BleedingPipe-style vulnerability risk) |
 | DETC-07 | Native/JNI loading | `System.load`/`loadLibrary`, embedded `.dll`/`.so`/`.dylib` entries |
 | DETC-08 | Credential theft | Discord token paths, browser cookie/login databases, `.minecraft` session files |
+| DETC-09 | Base64 stager | `Base64.getDecoder().decode()` + `URLClassLoader` chains — catches fractureiser Stage 0 patterns that hide URLs and class names in encoded payloads |
+| DETC-10 | Discord webhook | Discord webhook URLs (`discord.com/api/webhooks/`) — common exfiltration channel for game-malware to send stolen session data and credentials |
+| DETC-11 | Remote code load | `URLClassLoader` + remote class loading + file write + network fetch correlation — detects remote-JAR injection beyond generic dynamic load signals |
 
 ### YARA Rules
 
@@ -198,7 +202,7 @@ By default, MalwareBazaar matches short-circuit (no further analysis). If you ne
 
 ### Layer 2: Bytecode Capability Extraction
 
-If no threat intel match is found, the full bytecode analysis runs: archive traversal, class parsing, YARA scanning, and 8 capability detectors. The results are assembled into a `CapabilityProfile` containing:
+If no threat intel match is found, the full bytecode analysis runs: archive traversal, class parsing, YARA scanning, and 11 capability detectors. The results are assembled into a `CapabilityProfile` containing:
 
 - Which capabilities are present (network, execution, persistence, etc.) with evidence
 - YARA rule matches with severity
@@ -209,7 +213,7 @@ If no threat intel match is found, the full bytecode analysis runs: archive trav
 
 ### Layer 3: AI Verdict (Azure OpenAI)
 
-The capability profile is sent to Azure OpenAI (gpt-4o) with a specialized system prompt. The AI analyzes the profile in context -- understanding that `Runtime.exec()` in a rendering mod calling `glxinfo` is legitimate GPU probing, not malicious process execution. It returns:
+The capability profile is sent to Azure OpenAI (configurable model) with a specialized system prompt. The AI analyzes the profile in context -- understanding that `Runtime.exec()` in a rendering mod calling `glxinfo` is legitimate GPU probing, not malicious process execution. It returns:
 
 - **Verdict**: `CLEAN`, `SUSPICIOUS`, or `MALICIOUS`
 - **Confidence**: 0.0 to 1.0
@@ -595,7 +599,7 @@ POST /scan
   +- Archive traversal            analysis::read_archive_entries_recursive()
   +- Bytecode extraction          analysis::extract_bytecode_evidence()
   +- YARA per-entry               analysis::run_yara_scan()
-  +- Capability detectors         detectors::run_detectors()  - 8 detectors against EvidenceIndex
+  +- Capability detectors         detectors::run_detectors()  - 11 detectors against EvidenceIndex
   +- Profile builder              profile::build_profile()  - structured capability summary
   |
   +- AI verdict                   verdict::ai_verdict()  - Azure OpenAI gpt-4o analysis
