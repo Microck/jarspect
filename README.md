@@ -3,49 +3,12 @@
 </picture>
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **Upload a `.jar`, get a risk verdict with explainable indicators before you install.**
 
 The name **Jarspect** is a portmanteau of **JAR** (Java Archive) and **Inspect**, reflecting its mission to provide deep, automated inspection of game mods for hidden threats.
 
 Jarspect is an AI-first security scanner for Minecraft mods. It runs a 3-layer pipeline: MalwareBazaar threat intel, bytecode capability extraction, and Azure OpenAI verdict; to classify `.jar` files as **CLEAN**, **SUSPICIOUS**, or **MALICIOUS** with full explanations. The bytecode layer parses compiled `.class` files at the constant-pool and instruction level, reconstructs obfuscated strings, resolves method invocations, runs YARA rules per archive entry, and feeds 11 capability detectors into a structured profile that the AI analyzes to produce its verdict.
-
-### Features at a Glance
-
-- 🔍 **3-layer pipeline** — MalwareBazaar hash lookup → bytecode capability extraction → AI verdict
-- 🧠 **AI-first analysis** — Azure OpenAI (gpt-4o) understands context (e.g., `glxinfo` in rendering mods is benign)
-- ⚡ **Static override** — high-confidence YARA/detector signals override AI to guarantee MALICIOUS on known threats
-- 🏗️ **Bytecode-native** — parses `.class` constant pools and `invoke*` instructions, not regex over text
-- 🔄 **Hidden string reconstruction** — recovers `new String(new byte[]{...})` obfuscated payloads
-- 📦 **Recursive jar scanning** — follows jar-in-jar nesting with budget-gated inflation
-- 🎯 **11 capability detectors** — execution, network, dynamic loading, filesystem, persistence, deserialization, JNI, credential theft, base64 stager, Discord webhook, remote code loading
-- 📊 **120-sample benchmark** — 100% detection (70 malware), 100% clean (50 benign), Wilson 95% CI
-- 🖥️ **Single binary** — `cargo run` starts HTTP server + web UI
-
----
-
-## Table of Contents
-
-- [Why This Exists](#why-this-exists)
-- [How It Works](#how-it-works)
-- [Detection Engine](#detection-engine)
-- [Verdict Pipeline](#verdict-pipeline)
-- [Benchmarks](#benchmarks)
-- [Quickstart](#quickstart)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [API Reference](#api-reference)
-- [Web UI](#web-ui)
-- [Architecture](#architecture)
-- [Data Model](#data-model)
-- [Safety and Limitations](#safety-and-limitations)
-- [Development](#development)
-- [Contributing](#contributing)
-- [License](#license)
-- [Origin](#origin)
 
 ---
 
@@ -86,8 +49,7 @@ POST /scan  (upload_id)
         +-- YARA per-entry        inflate each entry, scan individually, severity from metadata
         +-- Metadata checks       fabric.mod.json / mods.toml / META-INF/neoforge.mods.toml / plugin.yml / MANIFEST.MF
         +-- Capability detectors  11 detectors (exec, network, dynamic load, fs/jar modify,
-        |                         persistence, deserialization, native/JNI, credential theft,
-        |                         base64 stager, Discord webhook, remote code loading)
+        |                         persistence, deserialization, native/JNI, credential theft)
         +-- Profile builder       structured capability profile with extracted artifacts
         |
   Layer 3: AI Verdict (Azure OpenAI)
@@ -102,7 +64,7 @@ GET /scans/{scan_id}  -> fetch full result at any time
 ```
 
 **Key properties:**
-- **AI-first** -- Azure OpenAI (configurable model) analyzes the full capability profile and decides the verdict; no rule-based scoring fallback
+- **AI-first** -- Azure OpenAI (gpt-4o) analyzes the full capability profile and decides the verdict; no rule-based scoring fallback
 - **Static override layer** -- high-confidence static signals (production YARA hits and malware-specific compound detectors) override the AI verdict to MALICIOUS via `static_override(ai_verdict)`, preventing the AI from downgrading obvious malware
 - **Known-malware guaranteed** -- MalwareBazaar hash match short-circuits to MALICIOUS before any other analysis (verdict always uses method `malwarebazaar_hash`)
 - **Reporting-friendly artifacts** -- scan JSON includes top-level `sha256` and (when available) `static_findings` for extracted URLs/domains/paths/commands
@@ -142,9 +104,6 @@ Eleven detectors run against an `EvidenceIndex` built from the extracted bytecod
 | DETC-06 | Unsafe deserialization | `ObjectInputStream.readObject()` (BleedingPipe-style vulnerability risk) |
 | DETC-07 | Native/JNI loading | `System.load`/`loadLibrary`, embedded `.dll`/`.so`/`.dylib` entries |
 | DETC-08 | Credential theft | Discord token paths, browser cookie/login databases, `.minecraft` session files |
-| DETC-09 | Base64 stager | `Base64.getDecoder().decode()` + `URLClassLoader` chains — catches fractureiser Stage 0 patterns that hide URLs and class names in encoded payloads |
-| DETC-10 | Discord webhook | Discord webhook URLs (`discord.com/api/webhooks/`) — common exfiltration channel for game-malware to send stolen session data and credentials |
-| DETC-11 | Remote code load | `URLClassLoader` + remote class loading + file write + network fetch correlation — detects remote-JAR injection beyond generic dynamic load signals |
 
 ### YARA Rules
 
@@ -213,7 +172,7 @@ If no threat intel match is found, the full bytecode analysis runs: archive trav
 
 ### Layer 3: AI Verdict (Azure OpenAI)
 
-The capability profile is sent to Azure OpenAI (configurable model) with a specialized system prompt. The AI analyzes the profile in context -- understanding that `Runtime.exec()` in a rendering mod calling `glxinfo` is legitimate GPU probing, not malicious process execution. It returns:
+The capability profile is sent to Azure OpenAI (gpt-4o) with a specialized system prompt. The AI analyzes the profile in context -- understanding that `Runtime.exec()` in a rendering mod calling `glxinfo` is legitimate GPU probing, not malicious process execution. It returns:
 
 - **Verdict**: `CLEAN`, `SUSPICIOUS`, or `MALICIOUS`
 - **Confidence**: 0.0 to 1.0
@@ -320,7 +279,7 @@ bun scripts/render-benchmark-figures.ts \
 
 ## Quickstart
 
-**Prerequisites:** Rust 1.85+ toolchain (2024 edition) ([rustup.rs](https://rustup.rs))
+**Prerequisites:** Rust stable toolchain ([rustup.rs](https://rustup.rs))
 
 ```bash
 git clone https://github.com/Microck/jarspect.git
@@ -407,12 +366,10 @@ curl http://localhost:18000/scans/<scan_id>
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `JARSPECT_BIND` | `127.0.0.1:18000` | Host and port the HTTP server binds to |
-| `JARSPECT_WEB_DIR` | `web` | Web assets directory served at `/static` and used for `/` |
 | `JARSPECT_RULEPACKS` | `demo` | Which YARA/signature rulepacks to load: `demo`, `prod`, or `demo,prod` |
 | `JARSPECT_AI_ENABLED` | `1` | Enable/disable AI verdict even if Azure OpenAI env vars are set (`0`/`false` to disable) |
 | `JARSPECT_UPLOAD_MAX_BYTES` | `52428800` | Maximum accepted upload size in bytes (default 50 MiB) |
 | `JARSPECT_MB_HASH_MATCH_ENABLED` | `1` | Enable/disable MalwareBazaar hash matching (`0`/`false` to disable; useful for benchmarking static/AI detectors) |
-| `JARSPECT_MB_MATCH_CONTINUE_ANALYSIS` | `0` | Continue static analysis after a MalwareBazaar hash match (`1`/`true` to keep profile artifacts while verdict stays `malwarebazaar_hash`) |
 | `RUST_LOG` | `jarspect=info,tower_http=info` | Log verbosity (uses `tracing-subscriber` env-filter syntax) |
 
 ### AI Verdict (required for production)
@@ -507,11 +464,10 @@ Liveness check. Reports AI status, loaded rulepacks, signature/YARA rule counts,
   "service": "jarspect",
   "version": "0.1.0",
   "ai_enabled": true,
-  "rulepacks": ["prod"],
-  "signatures_loaded": 12,
-  "yara_rulepacks_loaded": 1,
-  "malwarebazaar_hash_match_enabled": true,
-  "malwarebazaar_match_continue_analysis": false,
+  "rulepacks": "prod",
+  "signature_count": 12,
+  "yara_rule_count": 6,
+  "mb_hash_match_enabled": true,
   "upload_max_bytes": 52428800
 }
 ```
@@ -649,7 +605,7 @@ Verdict object:
 ## Safety and Limitations
 
 - **No sandbox.** Jarspect does not execute or load any `.class` files. All analysis is purely static (bytecode-level constant-pool and instruction parsing).
-- **AI-preferred with fallback.** Production verdicts use Azure OpenAI when configured. Without AI configuration, scans still succeed via `heuristic_fallback`; the AI path is preferred for ambiguous cases.
+- **AI-dependent.** Production verdicts require a working Azure OpenAI endpoint. Without AI configuration, scans will fail with an error. The AI model's judgment is the final authority on ambiguous cases.
 - **Rate limiting.** Azure OpenAI endpoints may be rate-limited (429 responses). Jarspect retries with exponential backoff but will fail if rate-limited for too long.
 - **Synthetic demo fixtures.** The bundled demo rulepack matches strings from `demo/suspicious_sample.jar` -- a synthetic artifact built by `demo/build_sample.sh`. No real malware samples are included in the repository.
 - **Static analysis only.** The bytecode layer extracts capabilities and artifacts deterministically from bytecode evidence, but does not execute code.
