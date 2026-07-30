@@ -22,6 +22,10 @@ Traditional antivirus and text-based scanners score these threats 0/100 because 
 
 Jarspect was built to fix both problems. Every detection technique in the bytecode layer traces back to a real-world malware sample or documented attack vector. The AI verdict layer understands context; it knows that `sodium` calling `glxinfo` is legitimate GPU detection, not process execution abuse.
 
+## Demo Video
+
+[Watch the Jarspect demo video](https://limewire.com/d/Kc3M9#GqcJxQf2Sj) (`JarspectSub.mp4`, 2:35)
+
 ---
 
 ## How It Works
