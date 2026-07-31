@@ -67,8 +67,8 @@ pub fn scan_yara_rulepacks(
     let mut findings = Vec::new();
 
     for pack in packs {
+        let mut scanner = Scanner::new(&pack.rules);
         for entry in entries {
-            let mut scanner = Scanner::new(&pack.rules);
             let scan_results = scanner.scan(entry.bytes.as_slice())?;
             for rule in scan_results.matching_rules() {
                 findings.push((
