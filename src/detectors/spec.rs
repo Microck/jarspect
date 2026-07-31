@@ -1,5 +1,11 @@
 use regex::Regex;
 use std::collections::BTreeSet;
+use std::sync::LazyLock;
+
+static URL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)https?://[a-z0-9][a-z0-9._:%+\-]*(?:\.[a-z0-9][a-z0-9._:%+\-]*)+(?:/[^\s\"'<>]*)?"#)
+        .expect("url regex must compile")
+});
 
 /// Shell command tokens used to identify command-like strings
 pub const COMMAND_TOKENS: &[&str] = &["powershell", "cmd.exe", "/bin/sh", "curl", "wget"];
@@ -75,14 +81,9 @@ pub const NETWORK_PRIMITIVE_MATCHERS: &[(&str, &str, &str)] = &[
 
 /// Extract HTTP/HTTPS URLs from an iterator of strings using regex matching
 pub fn extract_urls<'a>(strings: impl Iterator<Item = &'a str>) -> Vec<String> {
-    let regex = Regex::new(
-        r#"(?i)https?://[a-z0-9][a-z0-9._:%+\-]*(?:\.[a-z0-9][a-z0-9._:%+\-]*)+(?:/[^\s\"'<>]*)?"#,
-    )
-    .expect("url regex must compile");
-
     let mut urls = Vec::new();
     for value in strings {
-        for found in regex.find_iter(value) {
+        for found in URL_REGEX.find_iter(value) {
             urls.push(found.as_str().to_string());
         }
     }

@@ -233,6 +233,17 @@ pub fn run_static_analysis(
         ),
     ];
 
+    let compiled_sig_regexes: Vec<Option<Regex>> = signatures
+        .iter()
+        .map(|sig| {
+            if sig.kind == "regex" {
+                Regex::new(&sig.value).ok()
+            } else {
+                None
+            }
+        })
+        .collect();
+
     for entry in entries {
         let entry_text = entry.text.as_deref().unwrap_or("");
 
@@ -264,13 +275,13 @@ pub fn run_static_analysis(
             }
         }
 
-        for signature in signatures {
+        for (i, signature) in signatures.iter().enumerate() {
             let hit = match signature.kind.as_str() {
                 "token" => entry_text
                     .find(&signature.value)
                     .map(|offset| (offset, offset + signature.value.len())),
-                "regex" => Regex::new(&signature.value)
-                    .ok()
+                "regex" => compiled_sig_regexes[i]
+                    .as_ref()
                     .and_then(|re| re.find(entry_text).map(|m| (m.start(), m.end()))),
                 _ => None,
             };
