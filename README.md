@@ -24,7 +24,9 @@ Jarspect was built to fix both problems. Every detection technique in the byteco
 
 ## Demo Video
 
-[Watch the Jarspect demo video](https://limewire.com/d/Kc3M9#GqcJxQf2Sj) (`JarspectSub.mp4`, 2:35)
+<video controls width="100%" src="docs/assets/jarspect-demo.mp4"></video>
+
+[Download the Jarspect demo video](docs/assets/jarspect-demo.mp4) (`jarspect-demo.mp4`, 2:35)
 
 ---
 
