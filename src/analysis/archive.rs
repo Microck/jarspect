@@ -47,7 +47,7 @@ fn walk_archive(
     budgets: &mut ArchiveBudgets,
     entries: &mut Vec<ArchiveEntry>,
 ) -> Result<()> {
-    let cursor = Cursor::new(jar_bytes.to_vec());
+    let cursor = Cursor::new(jar_bytes);
     let mut archive = ZipArchive::new(cursor)?;
 
     for index in 0..archive.len() {
