@@ -1,0 +1,42 @@
+name: Real offline scanner browser flows
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_INCREMENTAL: '0'
+      JARSPECT_AI_ENABLED: '0'
+      JARSPECT_MB_HASH_MATCH_ENABLED: '0'
+      MALWAREBAZAAR_API_KEY: ''
+      AZURE_OPENAI_API_KEY: ''
+      AZURE_OPENAI_ENDPOINT: ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: bash demo/build_sample.sh
+      - run: cargo test --locked
+      - run: cargo build --locked
+      - run: npx --no-install e2e-web install chromium --with-deps
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: offline-scanner-browser-evidence
+          path: .e2e/results/
+          include-hidden-files: true
+          retention-days: 7

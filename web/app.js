@@ -32,11 +32,13 @@ const artifactsGrid = $("#artifacts-grid");
 
 let activeFilter = "all";
 let currentEvidence = [];
+let isScanning = false;
+let pipelineHideTimer;
+const escapeNode = document.createElement("div");
 
 function escapeHtml(value) {
-  const node = document.createElement("div");
-  node.textContent = value;
-  return node.innerHTML;
+  escapeNode.textContent = value;
+  return escapeNode.innerHTML;
 }
 
 function normalizeVerdict(raw) {
@@ -62,7 +64,10 @@ function setStatus(message, state) {
 }
 
 function setLoading(on) {
-  submitBtn.disabled = on;
+  isScanning = on;
+  fileInput.disabled = on;
+  dropZone.setAttribute("aria-disabled", String(on));
+  updateScanButtonState();
   submitBtn.dataset.scanning = on ? "true" : "false";
   btnText.textContent = on ? "Scanning" : "Run scan";
   btnLoader.hidden = !on;
@@ -84,6 +89,7 @@ const STEP_ICONS = {
 };
 
 function showPipelineSteps() {
+  clearTimeout(pipelineHideTimer);
   pipelineStepsEl.hidden = false;
   pipelineStepsEl.innerHTML = "";
   PIPELINE_STEPS.forEach((step, i) => {
@@ -115,6 +121,7 @@ function updatePipelineStep(stepId, state, detail) {
 }
 
 function hidePipelineSteps() {
+  clearTimeout(pipelineHideTimer);
   pipelineStepsEl.hidden = true;
 }
 
@@ -144,7 +151,7 @@ copyExplanationBtn.addEventListener("click", (e) => {
 
 function updateScanButtonState() {
   const hasFile = fileInput.files && fileInput.files.length > 0;
-  submitBtn.disabled = !hasFile;
+  submitBtn.disabled = isScanning || !hasFile;
 }
 
 async function uploadJar(file) {
@@ -458,8 +465,17 @@ filtersEl.addEventListener("click", (event) => {
   renderIndicators();
 });
 
-dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("click", () => {
+  if (!isScanning) fileInput.click();
+});
+dropZone.addEventListener("keydown", (event) => {
+  if (event.target === dropZone && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    if (!isScanning) fileInput.click();
+  }
+});
 fileInput.addEventListener("change", () => {
+  if (isScanning) return;
   const file = fileInput.files && fileInput.files[0];
   if (file) {
     fileNameEl.textContent = file.name;
@@ -482,7 +498,7 @@ function formatFileSize(bytes) {
 
 dropZone.addEventListener("dragover", (event) => {
   event.preventDefault();
-  dropZone.classList.add("drag-over");
+  if (!isScanning) dropZone.classList.add("drag-over");
 });
 
 dropZone.addEventListener("dragleave", () => {
@@ -493,6 +509,7 @@ dropZone.addEventListener("drop", (event) => {
   event.preventDefault();
   dropZone.classList.remove("drag-over");
 
+  if (isScanning) return;
   const file = event.dataTransfer.files && event.dataTransfer.files[0];
   if (!file || !file.name.toLowerCase().endsWith(".jar")) {
     setStatus("Only .jar files are accepted.", "error");
@@ -510,6 +527,7 @@ dropZone.addEventListener("drop", (event) => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (isScanning) return;
 
   const file = fileInput.files && fileInput.files[0];
   if (!file) {
@@ -556,8 +574,8 @@ form.addEventListener("submit", async (event) => {
         updatePipelineStep("ai-verdict", "running");
         await delay(500);
         updatePipelineStep("ai-verdict", "done", `Verdict: ${result.verdict?.result || "?"}`);
-      } else if (method === "heuristic_fallback") {
-        updatePipelineStep("ai-verdict", "skip", "AI unavailable -- heuristic used");
+      } else if (method.includes("heuristic_fallback") || method.startsWith("archive_")) {
+        updatePipelineStep("ai-verdict", "skip", "AI unavailable -- static analysis used");
       } else {
         updatePipelineStep("ai-verdict", "done");
       }
@@ -568,7 +586,7 @@ form.addEventListener("submit", async (event) => {
     setStatus("Scan complete.", "done");
 
     // Hide pipeline after a beat so the user sees the completed state
-    setTimeout(() => hidePipelineSteps(), 1500);
+    pipelineHideTimer = setTimeout(hidePipelineSteps, 1500);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     setStatus(message, "error");

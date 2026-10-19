@@ -1,0 +1,12 @@
+import {mkdtemp,cp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {resolve,join} from 'node:path';
+import {spawn} from 'node:child_process';
+const root=resolve('.');
+const home=await mkdtemp(join(tmpdir(),'jarspect-browser-'));
+await cp(join(root,'data'),join(home,'data'),{recursive:true});
+await writeFile(join(home,'.env'),'');
+const child=spawn(join(root,'target/debug/jarspect'),[],{cwd:home,stdio:'inherit',env:{...process.env,JARSPECT_BIND:'127.0.0.1:4190',JARSPECT_WEB_DIR:join(root,'web'),JARSPECT_RULEPACKS:'demo',JARSPECT_AI_ENABLED:'0',JARSPECT_MB_HASH_MATCH_ENABLED:'0',MALWAREBAZAAR_API_KEY:'',AZURE_OPENAI_API_KEY:'',AZURE_OPENAI_ENDPOINT:''}});
+for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>child.kill(signal));
+child.once('error',async error=>{console.error(error);await rm(home,{recursive:true,force:true});process.exitCode=1;});
+child.once('exit',async code=>{await rm(home,{recursive:true,force:true});process.exitCode=code??0;});

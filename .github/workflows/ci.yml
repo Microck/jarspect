@@ -15,5 +15,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Check
         run: cargo check
+      - name: Build synthetic regression fixture
+        run: bash demo/build_sample.sh
       - name: Test
         run: cargo test
