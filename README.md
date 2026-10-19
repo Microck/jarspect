@@ -718,3 +718,24 @@ Apache-2.0. See [`LICENSE`](LICENSE).
 ## Origin
 
 Built at the **Microsoft AI Dev Days Hackathon 2026**.
+
+### Deterministic browser verification
+
+With Rust, Node >=24.8, Python/zip and the usual native build prerequisites installed:
+
+```sh
+bash demo/build_sample.sh
+cargo test --locked
+cargo build --locked
+npm ci
+npx --no-install e2e-web install chromium --with-deps
+npm run test:e2e
+```
+
+The pinned tester-army/e2e suite drives the real Rust server and static web UI.
+It covers desktop/mobile upload, offline static/bytecode analysis, persisted scan
+retrieval, evidence filtering, overlapping scan controls, repeated-scan progress,
+unsupported-file recovery, malformed archive reporting and HTML escaping.
+The server uses an owned temporary directory and synthetic fixtures. Azure AI and
+MalwareBazaar are explicitly disabled; this verifies offline workflows, not
+provider accuracy or authenticated integrations. CI retains browser traces.
