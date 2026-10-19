@@ -85,4 +85,5 @@ test('malformed JAR exposes partial analysis without claiming AI completed',asyn
  expect(state.method).toBe('archive validation failure');
  expect(state.explanation).toContain('could not be fully analyzed');
  expect(state.ai).toBe('skip');
+ expect(await browser.evaluate(()=>document.querySelector('#step-ai-verdict .pipeline-step-detail')!.textContent)).toBe('AI skipped -- archive validation failed');
 });

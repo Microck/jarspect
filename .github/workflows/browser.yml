@@ -37,6 +37,6 @@ jobs:
         if: always()
         with:
           name: offline-scanner-browser-evidence
-          path: .e2e/results/
+          path: .e2e/
           include-hidden-files: true
           retention-days: 7

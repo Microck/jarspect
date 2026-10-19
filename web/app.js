@@ -574,7 +574,9 @@ form.addEventListener("submit", async (event) => {
         updatePipelineStep("ai-verdict", "running");
         await delay(500);
         updatePipelineStep("ai-verdict", "done", `Verdict: ${result.verdict?.result || "?"}`);
-      } else if (method.includes("heuristic_fallback") || method.startsWith("archive_")) {
+      } else if (method.startsWith("archive_")) {
+        updatePipelineStep("ai-verdict", "skip", "AI skipped -- archive validation failed");
+      } else if (method.includes("heuristic_fallback")) {
         updatePipelineStep("ai-verdict", "skip", "AI unavailable -- static analysis used");
       } else {
         updatePipelineStep("ai-verdict", "done");
